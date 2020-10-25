@@ -25,4 +25,15 @@ export class UserController {
             return e;
         }
     }
+
+    @Get(':id')
+    @Bind(Param('id'))
+    async getUser(userId){
+        try{
+            const res = await this.userService.getUser(userId);
+            return res;
+        }catch(e){
+            return e;
+        }
+    }
 }

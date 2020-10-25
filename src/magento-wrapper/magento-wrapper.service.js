@@ -48,22 +48,29 @@ export class MagentoWrapperService {
             };
         }
     }
-
-    async post(url, reqData = {}, config = {}){
-        try{
-            const res = await this.MagentoClient.post(url, reqData, config);
-             console.log(res.config);
-            const {data} = res;
-            return data;
-        }catch(e){
-            console.error(e);
-            return {
-                name: 'Error',
-                status: e.response.status,
-                statusText: e.response.statusText
-            };
-        }
+/**
+ * @description
+ * @author Itachi
+ * @date 23/10/2020
+ * @param {string} url
+ * @param {Object} [reqData={}]
+ * @param {Object} [config={}]
+ * @return {Promise<any>}  
+ * @memberof MagentoWrapperService
+ */
+async post(url, reqData = {}, config = {}){
+    try{
+        const res = await this.MagentoClient.post(url, reqData, config);
+        const {data} = res;
+        return data;
+    }catch(e){
+        return {
+            name: 'Error',
+            status: e.response.status,
+            statusText: e.response.statusText
+        };
     }
+}
 
     async put(url, reqData = {}, config = {}){
         try{

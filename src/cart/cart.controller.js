@@ -29,8 +29,13 @@ export class CartController {
 
     @Get('createGuestCart')
     async createGuestCart(){
-        const quote = await this.cartService.createGuestCart();
-        return quote;
+        try{
+            const cartId = await this.cartService.createGuestCart();
+            return cartId;
+        }catch(e){
+            return e;
+        }
+        
     }
 
     @Get('getCart/:cardId')
@@ -76,6 +81,76 @@ export class CartController {
         try
         {
             const res = await this.cartService.updateCartItem(cartItem, cartId, itemId);
+            return res;
+        }catch(e){
+            return e;
+        }
+    }
+
+    @Post('getShippingMethods')
+    @Bind(Body())
+    async getShippingMethods(data){
+        const { cartId, addressId } = data;
+        try{
+            const res = await this.cartService.getShippingMethods(cartId, addressId);
+            return res;
+        }catch(e){
+            return e;
+        }
+    }
+
+    @Post('setShippingInformations')
+    @Bind(Body())
+    async setShippingInformations(data){
+        const { cartId, addressInformation } = data;
+        try{
+            const res = await this.cartService.setShippingInformations(cartId, addressInformation);
+            return res;
+        }catch(e){
+            return e;
+        }
+    }
+
+    @Post('putOrder')
+    @Bind(Body())
+    async putOrder(data){
+        const { cartId, method } = data;
+        try{
+            const res = await this.cartService.putOrder(cartId, method);
+            return res;
+        }catch(e){
+            return e;
+        }
+    }
+
+    @Get('createInvoice/:orderId')
+    @Bind(Param('orderId'))
+    async createInvoice(orderId){
+        try{
+            const res = await this.cartService.createInvoice(orderId);
+            return res
+        }catch(e){
+            return e;
+        }
+    }
+
+    @Get('getInvoice/:invoiceId')
+    @Bind(Param('invoiceId'))
+    async getInvoice(invoiceId){
+        try{
+            const res = await this.cartService.getInvoice(invoiceId);
+            return res
+        }catch(e){
+            return e;
+        }
+    }
+
+    @Post('createShipement')
+    @Bind(Body())
+    async createShipement(data){
+        const {orderId, items, tracks} = data;
+        try{
+            const res = await this.cartService.createShipement(orderId, items, tracks);
             return res;
         }catch(e){
             return e;

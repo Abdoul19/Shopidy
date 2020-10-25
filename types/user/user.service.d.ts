@@ -13,11 +13,14 @@ export class UserService {
     /**
      *
      *
-     * @param {int} userId
-     * @return {Object} user
+     * @param {number} userId
+     * @return {Promise<{id: number, name: string}>} user
      * @memberof UserService
      */
-    getUser(userId: any): any;
+    getUser(userId: number): Promise<{
+        id: number;
+        name: string;
+    }>;
     createUser(user: any): Promise<any>;
     updateUser(user: any): Promise<any>;
     deleteUser(userId: any): Promise<any>;

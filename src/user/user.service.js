@@ -62,7 +62,6 @@ export class UserService {
      */
     async getUser(userId){
             try{
-
                 const res = await this.MagentoClient.get(`customers/${userId}`);
                 return res;
             }catch(e){
