@@ -1,13 +1,40 @@
 import { Injectable, Dependencies } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { MagentoWrapperService } from '../magento-wrapper/magento-wrapper.service'
+import { MagentoWrapperService } from '../magento-wrapper/magento-wrapper.service';
+import { DatastoreService } from '../datastore/datastore.service'
+import { recordType, recordName } from './user.recordType';
 
 @Injectable()
-@Dependencies(ConfigService, MagentoWrapperService)
+@Dependencies(ConfigService, MagentoWrapperService, DatastoreService)
 export class UserService {
-    constructor(ConfigService, MagentoWrapperService){
+    constructor(ConfigService, MagentoWrapperService, DatastoreService){
         this.configService = ConfigService;
         this.MagentoClient = MagentoWrapperService;
+        this.datastoreService = DatastoreService;
+        this.recordType = recordType;
+        this.recordName = recordName;
+        
+        this.users = [
+            {
+              userId: 1,
+              username: 'john',
+              password: 'changeme',
+            },
+            {
+              userId: 2,
+              username: 'chris',
+              password: 'secret',
+            },
+            {
+              userId: 3,
+              username: 'maria',
+              password: 'guess',
+            },
+          ];
+    }
+
+    async findOne(username) {
+        return this.users.find(user => user.username === username);
     }
 
     /**
@@ -70,18 +97,22 @@ export class UserService {
             }
     }
 
+    // async createUser(user){
+    //     const email = {customerEmail: user.customer.email};
+    //     const emailAvail = await this.MagentoClient.post('customers/isEmailAvailable', email); 
+    //     if(emailAvail) {
+    //         try{
+    //             const res = await this.MagentoClient.post('customers', user);
+    //             return res;
+    //         }catch(e){
+    //             return e;
+    //         } 
+    //     }
+    //     return 'Email unavailable';
+    // }
     async createUser(user){
-        const email = {customerEmail: user.customer.email};
-        const emailAvail = await this.MagentoClient.post('customers/isEmailAvailable', email); 
-        if(emailAvail) {
-            try{
-                const res = await this.MagentoClient.post('customers', user);
-                return res;
-            }catch(e){
-                return e;
-            } 
-        }
-        return 'Email unavailable';
+          const store = await this.datastoreService.createStore(this.recordType);
+          return store.create(this.recordName, user);
     }
 
     async updateUser(user){

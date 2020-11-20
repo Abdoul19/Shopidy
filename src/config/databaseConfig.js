@@ -1,6 +1,6 @@
 export default () => ({
   elasticsearch: {
-    host: parseInt(process.env.ELASTIC_HOST, 10) || '15.236.250.32',
+    host: parseInt(process.env.ELASTIC_HOST, 10) || 'http://localhost',
     port: process.env.ELASTIC_PORT || '9200',
   },
   redis: {

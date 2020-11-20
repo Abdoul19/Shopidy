@@ -5,7 +5,7 @@ import { UserService } from './user/user.service';
 @Controller()
 @Dependencies(AppService, UserService)
 export class AppController {
-  constructor(appService, userService) {
+  constructor(appService, userService, DatastoreService) {
     this.appService = appService;
     this.userService = userService;
   }
