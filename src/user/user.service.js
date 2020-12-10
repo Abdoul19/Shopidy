@@ -34,7 +34,11 @@ export class UserService {
     }
 
     async findOne(username) {
-        return this.users.find(user => user.username === username);
+        //return this.users.find(user => user.username === username);
+        const store = await this.datastoreService.createStore(this.recordType);
+         const result =  await store.find(this.recordName, undefined, {match: {name: username}});
+         console.log(result);
+         return result;
     }
 
     /**
