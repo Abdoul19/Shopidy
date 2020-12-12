@@ -8,12 +8,12 @@ import { AuthService } from './auth.service';
 @Dependencies(AuthService)
 export class LocalStrategy extends PassportStrategy(Strategy) {
   constructor(authService) {
-    super();
+    super({usernameField: "phone"});
     this.authService = authService;
   }
 
-  async validate(username, password) {
-    const user = await this.authService.validateUser(username, password);
+  async validate(phone, password) {
+    const user = await this.authService.validateUser(phone, password);
     if (!user) {
       throw new UnauthorizedException();
     }

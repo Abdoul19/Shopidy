@@ -21,12 +21,23 @@ export class UserService {
         
     }
 
-    async findOne(username) {
-        //return this.users.find(user => user.username === username);
-        const store = await this.datastoreService.createStore(this.recordType);
-         const result =  await store.find(this.recordName, undefined, {match: {name: username}});
-         console.log(result);
-         return result;
+    async findOne(number) {
+        return new Promise((resolve, reject) => {
+            this.checkNumber(number).then(() => {
+                this.elasticsearchService.helpers.search({
+                    index: "test",
+                    body: {
+                        query:{
+                            match:{
+                                phone: number
+                            }
+                        }
+                    }
+                }).then((result) => {
+                    resolve(result[0]);
+                }).catch(e => { reject(e) });
+            }).catch(() => { reject("Unrecognized Phone number") });
+        });
     }
 
     /**
@@ -188,9 +199,7 @@ export class UserService {
                         const { body: {_id}, statusCode } = response;
                         resolve(
                             {
-                                statusCode,
-                                id: _id,
-                                username: user.username
+                                id: _id
                             }
                         );
                     }).catch(e => reject("Error on database " + e));
