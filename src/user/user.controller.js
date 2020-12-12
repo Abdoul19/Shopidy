@@ -1,4 +1,4 @@
-import { Controller, Dependencies, Get, Post, Bind, Body, Param, Request, UseGuards } from '@nestjs/common';
+import { Controller, Dependencies, Get, Post, Bind, Body, HttpStatus, Param, Request, UseGuards, HttpException } from '@nestjs/common';
 import { UserService } from './user.service';
 import { LocalAuthGuard } from '../auth/local-auth.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -42,5 +42,39 @@ export class UserController {
   async createUser(data){
     const { user } = data;
     return this.userService.createUser(user);
+  }
+
+  @Post('addUser')
+  @Bind(Body())
+  async addUser(data){
+    const { user } = data;
+    try{
+      return await this.userService.addUser(user);
+    }catch(e){
+      throw new HttpException(
+        { 
+          status: HttpStatus.BAD_REQUEST,
+          error: e
+        }, 
+        HttpStatus.BAD_REQUEST
+      )
+    }
+  }
+
+  @Post('readUser')
+  @Bind(Body())
+  async readeUser(data){
+    const { phone } = data;
+    try{
+      return await this.userService.readUser(phone);
+    }catch(e){ 
+      throw new HttpException(
+        { 
+          status: HttpStatus.NOT_FOUND,
+          error: e
+        }, 
+        HttpStatus.NOT_FOUND
+      )
+    }
   }
 }
