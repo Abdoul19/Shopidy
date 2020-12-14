@@ -73,17 +73,12 @@ async post(url, reqData = {}, config = {}){
 }
 
     async put(url, reqData = {}, config = {}){
-        try{
-            const {data} = await this.MagentoClient.put(url, reqData, config);
-            return data;
-        }catch(e){
-            console.error(e);
-            return {
-                name: 'Error',
-                status: e.response.status,
-                statusText: e.response.statusText
-            };
-        }
+        return new Promise((resolve, reject) => {
+            this.MagentoClient.put(url, reqData, config).then((res) => {
+                const {data} = res;
+                resolve(data)
+            }).catch(e => reject(e));
+        }); 
     }
 
     async delete(url, config = {}){

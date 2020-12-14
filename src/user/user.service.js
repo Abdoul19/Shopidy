@@ -24,7 +24,7 @@ export class UserService {
     async findOne(number) {
         return new Promise((resolve, reject) => {
             this.checkNumber(number).then(() => {
-                this.elasticsearchService.helpers.search({
+                this.elasticsearchService.search({
                     index: "test",
                     body: {
                         query:{
@@ -34,7 +34,11 @@ export class UserService {
                         }
                     }
                 }).then((result) => {
-                    resolve(result[0]);
+                    const {body: { hits: { hits } } } = result;
+                    const user = hits[0]._source;
+                    user.id = hits[0]._id;
+                    
+                    resolve(user);
                 }).catch(e => { reject(e) });
             }).catch(() => { reject("Unrecognized Phone number") });
         });
@@ -119,21 +123,54 @@ export class UserService {
     }
 
     async updateUser(user){
-        try{
-            const res = await this.MagentoClient.put(`customers/${user.customer.id}`, user);
-            return res;
-        }catch(e){
-            return e;
-        }
+        return new Promise((resolve, reject) => {
+            const customer = user.customer;
+            
+            this.checkNumber(user.phone).then(() => {
+                this.MagentoClient.put(`customers/${customer.id}`, {customer}).then((data) => {
+                    // console.log(data);
+                    // resolve(data);
+                    const {id, ...body} = user;
+                    body.customer = data;
+                    this.elasticsearchService.index({
+                        index: "test",
+                        id,
+                        body
+                    }).then((response) => {
+                        const { body: {_id}, statusCode } = response;
+                        resolve(
+                            {
+                                id: _id
+                            }
+                        );
+                    }).catch(e => reject("Error on database " + e));
+
+                }).catch(e => reject(e));
+            }).catch(e => reject(e));
+            
+        });
     }
 
-    async deleteUser(userId){
-        try{
-            const res = await this.MagentoClient.delete(`customers/${userId}`);
-            return res;
-        }catch(e){
-            return e;
-        }
+    async deleteUser(user){
+        return new Promise((resolve, reject) => {
+
+            this.MagentoClient.delete(`customers/${user.customer.id}`).then((res) => {
+                this.elasticsearchService.helpers.bulk({
+                    datasource: [user],
+                    onDocument (user) {
+                        return {
+                        delete: { _index: 'test', _id: user.id }
+                        }
+                    }
+                }).then(() => {
+                    resolve("User deleted");
+                }).catch((e) => {reject(e)});
+
+            }).catch(e => {
+                reject(e);
+            });
+
+        });
     }
 
     /**
@@ -145,8 +182,8 @@ export class UserService {
      * @memberof UserService
      */
     async getCustomerToken(email, password){
-        try{
-            const res = await this.MagentoClient.post(`integration/customer/token`, 
+        return new Promise((resolve, reject) => {
+            this.MagentoClient.post(`integration/customer/token`, 
                 {
                     username: email,
                     password: password
@@ -154,22 +191,22 @@ export class UserService {
                 {
                     headers: {'Authorization': ''} 
                 }
-            );
-            return res;
-        }catch(e){
-            return e;
-        }
+            ).then((res) => {
+                resolve(res);
+            }).catch(e => reject(e));
+            
+        });
     }
 
-    async addUser(user){       
+    async addUser(user){
         return new Promise((resolve, reject) => {
 
             if(user.password.length < 8){
                 reject("Password too short");
             }
-            else if(isNaN(user.phone)){
-                reject("Given Phone number is not valid");
-            }
+            // else if(isNaN(user.phone)){
+            //     reject("Given Phone number is not valid");
+            // }
             else if(user.phone.toString().length < 8){
                 reject("Phone number must be at least 8")
             }
@@ -183,27 +220,41 @@ export class UserService {
             this.checkNumber(user.phone).then(() => {
                 // A resolved promise here mean that phone number is already in database, that's why we reject adding new user with the same number
                 reject("Phone number already in use")
-            }).catch(() => { 
-                // Phone number not in database, so we can add new user with this phone number 
-                bcrypt.hash(user.password, this.saltOrRounds).then((hash) => {
-                    this.elasticsearchService.index({
-                        index: "test",
-                        body: {
-                            firstname: user.firstname,
-                            lastname: user.lastname,
-                            username: user.username,
-                            password: hash,
-                            phone: user.phone
-                        }
-                    }).then((response) => {
-                        const { body: {_id}, statusCode } = response;
-                        resolve(
-                            {
-                                id: _id
+            }).catch(() => {
+                //User not present in  database, so we create new 
+                // const firstname = user.firstname;
+                // First create customer object to put in magento backend
+                const customerMail = user.firstname.toLowerCase() + user.phone + "@shopidy.ml"
+                const customer = {
+                    email: customerMail,
+                    firstname: user.firstname,
+                    lastname: user.lastname
+                };
+
+                // First post customer object in magento database, if this call succes then create customer object in our database
+                this.MagentoClient.post('customers', {customer, password: user.password}).then((data) => {
+
+                    //User well added in magento so we hash 
+                    bcrypt.hash(user.password, this.saltOrRounds).then((hash) => {
+                        this.elasticsearchService.index({
+                            index: "test",
+                            body: {
+                                customer: data,
+                                password: hash,
+                                phone: user.phone
                             }
-                        );
-                    }).catch(e => reject("Error on database " + e));
-                }).catch(e => reject("Error on hashing password" + e)); 
+                        }).then((response) => {
+                            const { body: {_id}, statusCode } = response;
+                            resolve(
+                                {
+                                    id: _id
+                                }
+                            );
+                        }).catch(e => reject("Error on database " + e));
+                    }).catch(e => reject("Error on hashing password" + e));
+
+                }).catch(e => reject(e));
+                 
 
             });
                 
@@ -213,7 +264,7 @@ export class UserService {
     async readUser(number){
         return new Promise((resolve, reject) => {
             this.checkNumber(number).then(() => {
-                this.elasticsearchService.helpers.search({
+                this.elasticsearchService.search({
                     index: "test",
                     body: {
                         query:{
@@ -223,10 +274,16 @@ export class UserService {
                         }
                     }
                 }).then((result) => {
-                    const { password, ...rest } = result[0];
-                    resolve(rest);
-                }).catch(e => { reject(e) });
-            }).catch(() => { reject("Unrecognized Phone number") });
+                    //const { password, ...rest } = result[0];
+                    const {body: { hits: { hits } } } = result;
+                    const user = {
+                        id: hits[0]._id,
+                        customer: hits[0]._source.customer,
+                        phone: hits[0]._source.phone,
+                    };
+                    resolve(user);
+                }).catch(e => { console.error(e);reject(e) });
+            }).catch((e) => { console.error(e); reject(e) });
         });   
     }
 

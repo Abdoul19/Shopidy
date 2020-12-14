@@ -1,10 +1,10 @@
 export default () => ({
   magento2: {
-    url: 'http://localhost',
-    consumerKey: 'y2pwfrs45ovujoa3urz3j7hz75yky83b',
-    consumerSecret: 'cn56j81ercorp190waoi09kcc3tg0buh',
-    accessToken: 'aci1k47s0dp2jwruuzv2et9i1joa7nkg',
-    tokenSecret: 'dyd0af7fzj6j26h4vjt7hpvrug359olb',
-    defaultStoreId: 1
+    url: 'http://shopidy.ml',
+    consumerKey: 's7b5klprysu8mizaalwsbv01az8eauvl',
+    consumerSecret: 'g3ofe93rkqpxx2xjcy2xxtbvi36yxfo3',
+    accessToken: 'gk1cjwwjxn5dsqm4ed88fjip5c2msfbb',
+    tokenSecret: '0sha3iiwxi6k9rcuzuajz3e2rpg4rnil',
+    defaultStoreId: 1,
   },
 });

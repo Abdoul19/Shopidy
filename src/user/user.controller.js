@@ -77,4 +77,38 @@ export class UserController {
       )
     }
   }
+
+  @Post('updateUser')
+  @Bind(Body())
+  async updateUser(data){
+    const { user } = data;
+    try{
+      return await this.userService.updateUser(user);
+    }catch(e){ 
+      throw new HttpException(
+        { 
+          status: HttpStatus.NOT_FOUND,
+          error: e
+        }, 
+        HttpStatus.NOT_FOUND
+      )
+    }
+  }
+
+  @Post('deleteUser')
+  @Bind(Body())
+  async deleteUser(data){
+    const { user } = data;
+    try{
+      return await this.userService.deleteUser(user);
+    }catch(e){ 
+      throw new HttpException(
+        { 
+          status: HttpStatus.NOT_FOUND,
+          error: e
+        }, 
+        HttpStatus.NOT_FOUND
+      )
+    }
+  }
 }
