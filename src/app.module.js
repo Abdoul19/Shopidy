@@ -8,7 +8,9 @@ import { StoreModule } from './store/store.module';
 import { CartModule } from './cart/cart.module';
 import { AuthModule } from './auth/auth.module';
 import { DatastoreModule } from './datastore/datastore.module';
+import { SmsService } from './sms/sms.service';
 import base from './config/base';
+import smsApi from './config/smsApi';
 import databaseConfig from './config/databaseConfig';
 
 
@@ -16,7 +18,7 @@ import databaseConfig from './config/databaseConfig';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [base, databaseConfig],
+      load: [base, databaseConfig, smsApi],
     }),
     UserModule,
     MagentoWrapperModule,
@@ -26,6 +28,6 @@ import databaseConfig from './config/databaseConfig';
     DatastoreModule
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, SmsService],
 })
 export class AppModule {}

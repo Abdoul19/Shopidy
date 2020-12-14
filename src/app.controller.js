@@ -1,12 +1,14 @@
 import { Controller, Dependencies, Get, Post, Body, Bind } from '@nestjs/common';
 import { AppService } from './app.service';
+import { SmsService } from './sms/sms.service';
 import { UserService } from './user/user.service';
 
 @Controller()
-@Dependencies(AppService, UserService)
+@Dependencies(AppService, UserService, SmsService)
 export class AppController {
-  constructor(appService, userService, DatastoreService) {
+  constructor(appService, userService, SmsService) {
     this.appService = appService;
+    this.smsService = SmsService;
     this.userService = userService;
   }
 
@@ -129,5 +131,16 @@ export class AppController {
     // }catch(e){
     //   return e;
     // }
+  }
+
+  @Post('sendSms')
+  @Bind(Body())
+  async sendSms(data)
+  {
+    const { message, recipient } = data;
+    try{
+      const res = await this.smsService.sendSms(message, recipient);
+      return res;
+    }catch(e){console.error(e); return e}
   }
 }
