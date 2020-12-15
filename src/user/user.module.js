@@ -3,10 +3,11 @@ import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { AuthModule } from '../auth/auth.module';
 import {ElasticsearchModule} from '@nestjs/elasticsearch';
+import { SmsService } from '../sms/sms.service'
 
 @Global()
 @Module({
-  providers: [UserService],
+  providers: [UserService, SmsService],
   exports: [UserService],
   imports: [
     AuthModule,

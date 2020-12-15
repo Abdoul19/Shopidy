@@ -10,15 +10,7 @@ export class SmsService {
     this.configService = ConfigService;
     this.smsClient = axios.create({
       baseURL: `${this.configService.get('smsApi').baseUrl}`,
-      headers: {'Authorization': `Bearer ${this.configService.get('smsApi').accessToken}`, 'Content-Type': 'application/json'},
-      transformRequest: [(data, headers) => {
-                
-        // if(headers.Authorization == undefined){
-        //     headers.Authorization = `Bearer ${this.configService.get('magento2').accessToken}`;
-        // }
-        //headers['content-type'] = 'application/json';
-        return JSON.stringify(data);
-      }]
+      headers: {'Authorization': `Bearer ${this.configService.get('smsApi').accessToken}`, 'Content-Type': 'application/json'}
     });
   }
 
@@ -28,7 +20,7 @@ export class SmsService {
         `smsmessaging/v1/outbound/tel%3A%2B${this.configService.get('smsApi').senderPhoneNumber}/requests`, 
         {
           outboundSMSMessageRequest: {
-            address: `tel:+${recipient}`,
+            address: `tel:+223${recipient}`,
             senderAddress: `tel:+${this.configService.get('smsApi').senderPhoneNumber}`,
             outboundSMSTextMessage: {
               message

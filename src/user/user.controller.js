@@ -16,21 +16,19 @@ export class UserController {
     @Post('login')
     @Bind(Request())
     async login(req){
-        return this.authService.login(req.user);
-        //const {email} = data;
-        // try{
-        //     const res = await this.userService.searchUser(email);
-        //     if(res.statusCode == 404){
-        //         return res;
-        //     }
-        //     const user = await this.userService.getUser(res.id);
-        //     return user;
-        // }catch(e){
-        //     return e;
-        // }
+      if(!req.user.active){
+        throw new HttpException(
+          { 
+            status: HttpStatus.NOT_FOUND,
+            error: 'User not active'
+          }, 
+          HttpStatus.NOT_FOUND
+        ) 
+      }
+      return this.authService.login(req.user);
     }
 
-    @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Get('profile')
   @Bind(Request())
   getProfile(req) {
@@ -110,5 +108,67 @@ export class UserController {
         HttpStatus.NOT_FOUND
       )
     }
+  }
+
+  @Post('activateUser')
+  @Bind(Body())
+  async activateUser(data){
+    const { activation_code, phone, password } = data;
+    try{
+      return await this.userService.activateUser(activation_code, phone, password);
+    }catch(e){
+      
+      throw new HttpException(
+        { 
+          status: HttpStatus.NOT_FOUND,
+          error: e
+        }, 
+        HttpStatus.NOT_FOUND
+      )
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('changePassword')
+  @Bind(Request())
+  async changePassword(req){
+    console.log(req.body);
+    const phone = req.body.phone
+    const newPass = req.body.password
+    try{
+      const user = await this.userService.findOne(phone);
+      return await this.userService.changePassword(user, newPass);
+    }catch(e){
+      throw new HttpException(
+        { 
+          status: HttpStatus.NOT_FOUND,
+          error: e
+        }, 
+        HttpStatus.NOT_FOUND
+      )
+    }
+  }
+
+  @Post('resetPassword')
+  @Bind(Body())
+  async resetPassword(data){
+    const { phone, activation_code, newPass } = data;
+    try{
+      return await this.userService.resetPassword(phone, activation_code, newPass);
+    }catch(e) {
+      throw new HttpException(
+        { 
+          status: HttpStatus.NOT_FOUND,
+          error: e
+        }, 
+        HttpStatus.NOT_FOUND
+      )
+    }
+  }
+  
+  @Post('ResendActivationCode')
+  @Bind(Body())
+  async resendPassword(data){
+
   }
 }

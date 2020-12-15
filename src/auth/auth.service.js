@@ -44,7 +44,7 @@ export class AuthService {
   }
 
   async login(user) {
-    const payload = { username: user.username, sub: user.userId };
+    const payload = {userId: user.id, userPhone: user.phone};
     return {
       access_token: this.jwtService.sign(payload), // Token used by user for request to nest backend
       customer_token: user.customer_token // Token used by user for direct request to magento
@@ -55,4 +55,5 @@ export class AuthService {
     const hourInterval = Math.round(timestamp1/60/60) - Math.round(timestamp2/60/60);
     return hourInterval;
   }
+
 }

@@ -3,22 +3,17 @@ import { ConfigService } from '@nestjs/config';
 import { ElasticsearchService } from '@nestjs/elasticsearch'
 import * as bcrypt from 'bcrypt';
 import { MagentoWrapperService } from '../magento-wrapper/magento-wrapper.service';
-import { DatastoreService } from '../datastore/datastore.service'
-import { recordType, recordName } from './user.recordType';
+import { SmsService } from '../sms/sms.service'
 
 @Injectable()
-@Dependencies(ConfigService, MagentoWrapperService, DatastoreService, ElasticsearchService)
+@Dependencies(ConfigService, MagentoWrapperService, ElasticsearchService, SmsService)
 export class UserService {
-    constructor(ConfigService, MagentoWrapperService, DatastoreService, ElasticsearchService){
+    constructor(ConfigService, MagentoWrapperService, ElasticsearchService, SmsService){
         this.configService = ConfigService;
         this.MagentoClient = MagentoWrapperService;
-        this.datastoreService = DatastoreService;
-        this.recordType = recordType;
-        this.recordName = recordName;
         this.elasticsearchService = ElasticsearchService;
         this.saltOrRounds = 10;
-
-        
+        this.smsService = SmsService;
     }
 
     async findOne(number) {
@@ -207,9 +202,7 @@ export class UserService {
             // else if(isNaN(user.phone)){
             //     reject("Given Phone number is not valid");
             // }
-            else if(user.phone.toString().length < 8){
-                reject("Phone number must be at least 8")
-            }
+            
             else if(user.firstname.length < 2){
                 reject("Firstname must be at least 2");
             }
@@ -224,16 +217,19 @@ export class UserService {
                 //User not present in  database, so we create new 
                 // const firstname = user.firstname;
                 // First create customer object to put in magento backend
-                const customerMail = user.firstname.toLowerCase() + user.phone + "@shopidy.ml"
+                const customerMail = user.firstname.toLowerCase() + user.phone + "@shopidy.ml";
+                const pass = user.firstname.toLowerCase() + user.phone;
                 const customer = {
                     email: customerMail,
                     firstname: user.firstname,
                     lastname: user.lastname
                 };
+                const activation_code = this.generateActivationCode();
+                const activation_code_created_at = new Date().getTime();
 
                 // First post customer object in magento database, if this call succes then create customer object in our database
-                this.MagentoClient.post('customers', {customer, password: user.password}).then((data) => {
-
+                this.MagentoClient.post('customers', {customer, password: pass}).then((data) => {
+                    
                     //User well added in magento so we hash 
                     bcrypt.hash(user.password, this.saltOrRounds).then((hash) => {
                         this.elasticsearchService.index({
@@ -241,15 +237,21 @@ export class UserService {
                             body: {
                                 customer: data,
                                 password: hash,
-                                phone: user.phone
+                                phone: user.phone,
+                                active: false,
+                                activation_code: activation_code,
+                                activation_code_created_at: activation_code_created_at
                             }
                         }).then((response) => {
                             const { body: {_id}, statusCode } = response;
+                            this.smsService.sendSms(`Your Activation code is ${activation_code}`, user.phone).then(() => {;
                             resolve(
                                 {
                                     id: _id
                                 }
                             );
+                        }).catch(e => reject(e));
+                        
                         }).catch(e => reject("Error on database " + e));
                     }).catch(e => reject("Error on hashing password" + e));
 
@@ -287,8 +289,36 @@ export class UserService {
         });   
     }
 
+    async activateUser(activation_code, phone, pass){
+        console.error(phone)
+        return new Promise((resolve, reject) => {
+            
+            this.findOne(phone).then((user) => {
+                
+                if(activation_code.toString().length < 4){
+                    reject('Activation code must be 4 digit')
+                }else if(this.timeInterval(user.activation_code_created_at, new Date().getTime() > 60))
+
+                bcrypt.compare(pass, user.password).then(() => {
+                    
+                    if(activation_code == user.activation_code){
+                        user.active = true;
+                        
+                        this.updateUser(user).then(() => { resolve('User Activated')}).catch(e => reject(e))
+                    }else{
+                        reject('Wrong activation code given');
+                    }
+                });
+            }).catch(e => reject(e));
+        });
+    }
+
     async checkNumber(number){
         return new Promise((resolve, reject) => {
+
+            if(number.toString().length != 8 ){
+                reject("Phone number must be 8 digit")
+            }
             this.elasticsearchService.helpers.search({
                 index: "test",
                 body: {
@@ -311,4 +341,63 @@ export class UserService {
             }).catch(e => { reject(e) });
         });
     }
+
+    async resetPassword(phone, activation_code, newPass){
+        return new Promise((resolve, reject) => {
+            if(!activation_code || !newPass){
+                const activation_code = this.generateActivationCode();
+                this.findOne(phone).then((user) => {
+                    user.activation_code = activation_code;
+                    user.activation_code_created_at = new Date().getTime();
+                    this.updateUser(user).then(() => {
+                        this.smsService.sendSms(`Your activation code is ${activation_code}`, phone);
+                        resolve('Password reseted');
+                    }).catch(e => reject(e))
+                }).catch(e => reject(e));
+            } else if(phone && activation_code && newPass){
+                this.findOne(phone).then((user) => {
+                    if(activation_code == user.activation_code){
+                        
+                        if(this.timeInterval(user.activation_code_created_at, new Date().getTime() > 60)){
+                            bcrypt.hash(newPass, this.saltOrRounds).then((hash) => {
+                                user.password = hash;
+                                user.active = true;
+                                this.updateUser(user).then(() => {
+                                    resolve('Password changed')
+                                }).catch(e => reject(e))
+                            }).catch(e => reject(e));
+                        }else{
+                            reject('Given credentials expired');
+                        }
+
+                    }else{ reject('Wrong activation code'); }
+                }).catch(e => reject(e))
+            }else{
+                reject('Wrong credentials given');
+            }
+        })
+    }
+
+    async changePassword(user, newPass){
+        return new Promise((resolve, reject) => {
+                if(newPass.length < 8 ){
+                    reject("Password too short");
+                }
+                bcrypt.hash(newPass, this.saltOrRounds).then((hash) => {
+                    user.password = hash;
+                    this.updateUser(user).then(() => { resolve('Password updated')}).catch((e) => { reject(e) })        
+                }).catch(e => reject(e));
+            }
+        );
+    }
+
+    generateActivationCode(){
+        const activation_code = Math.floor((Math.random() * 99999) + 1000);
+        return activation_code;
+    }
+
+    timeInterval( timestamp1, timestamp2){
+        const hourInterval = Math.round(timestamp1/60/60) - Math.round(timestamp2/60/60);
+        return hourInterval;
+      }
 }
