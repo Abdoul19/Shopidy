@@ -7,4 +7,8 @@ export default () => ({
     tokenSecret: '0sha3iiwxi6k9rcuzuajz3e2rpg4rnil',
     defaultStoreId: 1,
   },
+  user_space: {
+    activation_code_validity: 60,
+    activation_code_length: 999999,
+  },
 });

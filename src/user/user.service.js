@@ -99,19 +99,6 @@ export class UserService {
             }
     }
 
-    // async createUser(user){
-    //     const email = {customerEmail: user.customer.email};
-    //     const emailAvail = await this.MagentoClient.post('customers/isEmailAvailable', email); 
-    //     if(emailAvail) {
-    //         try{
-    //             const res = await this.MagentoClient.post('customers', user);
-    //             return res;
-    //         }catch(e){
-    //             return e;
-    //         } 
-    //     }
-    //     return 'Email unavailable';
-    // }
     async createUser(user){
           const store = await this.datastoreService.createStore(this.recordType);
           return store.create(this.recordName, user);
@@ -176,18 +163,22 @@ export class UserService {
      * @return {string} Token 
      * @memberof UserService
      */
-    async getCustomerToken(email, password){
+    async getCustomerToken(firstname, lastname, email, phone){
         return new Promise((resolve, reject) => {
+            const pass = this.generatePass(firstname, lastname, phone);
             this.MagentoClient.post(`integration/customer/token`, 
                 {
                     username: email,
-                    password: password
+                    password: pass
                 },
                 {
                     headers: {'Authorization': ''} 
                 }
-            ).then((res) => {
-                resolve(res);
+            ).then((data) => {
+                if(data.name == 'Error'){
+                    reject(data)
+                }
+                resolve(data);
             }).catch(e => reject(e));
             
         });
@@ -196,12 +187,9 @@ export class UserService {
     async addUser(user){
         return new Promise((resolve, reject) => {
 
-            if(user.password.length < 8){
+            if(!this.checkPassword(user.password)){
                 reject("Password too short");
             }
-            // else if(isNaN(user.phone)){
-            //     reject("Given Phone number is not valid");
-            // }
             
             else if(user.firstname.length < 2){
                 reject("Firstname must be at least 2");
@@ -218,7 +206,7 @@ export class UserService {
                 // const firstname = user.firstname;
                 // First create customer object to put in magento backend
                 const customerMail = user.firstname.toLowerCase() + user.phone + "@shopidy.ml";
-                const pass = user.firstname.toLowerCase() + user.phone;
+                const pass = this.generatePass(user.firstname, user.lastname, user.phone)
                 const customer = {
                     email: customerMail,
                     firstname: user.firstname,
@@ -229,7 +217,9 @@ export class UserService {
 
                 // First post customer object in magento database, if this call succes then create customer object in our database
                 this.MagentoClient.post('customers', {customer, password: pass}).then((data) => {
-                    
+                    //console.log(data)
+                    if(data.name !== 'Error'){
+
                     //User well added in magento so we hash 
                     bcrypt.hash(user.password, this.saltOrRounds).then((hash) => {
                         this.elasticsearchService.index({
@@ -244,16 +234,14 @@ export class UserService {
                             }
                         }).then((response) => {
                             const { body: {_id}, statusCode } = response;
-                            this.smsService.sendSms(`Your Activation code is ${activation_code}`, user.phone).then(() => {;
-                            resolve(
-                                {
-                                    id: _id
-                                }
-                            );
-                        }).catch(e => reject(e));
-                        
+                            this.smsService.sendSms(`Your Activation code is ${activation_code}`, user.phone);
+                            resolve({ id: _id });
                         }).catch(e => reject("Error on database " + e));
                     }).catch(e => reject("Error on hashing password" + e));
+
+                    }else{
+                        reject(data)
+                    }
 
                 }).catch(e => reject(e));
                  
@@ -263,29 +251,27 @@ export class UserService {
         }); 
     }
 
-    async readUser(number){
+    async readUser(id){
         return new Promise((resolve, reject) => {
-            this.checkNumber(number).then(() => {
-                this.elasticsearchService.search({
-                    index: "test",
-                    body: {
-                        query:{
-                            match:{
-                                phone: number
-                            }
-                        }
-                    }
-                }).then((result) => {
-                    //const { password, ...rest } = result[0];
-                    const {body: { hits: { hits } } } = result;
-                    const user = {
-                        id: hits[0]._id,
-                        customer: hits[0]._source.customer,
-                        phone: hits[0]._source.phone,
-                    };
-                    resolve(user);
-                }).catch(e => { console.error(e);reject(e) });
-            }).catch((e) => { console.error(e); reject(e) });
+            this.elasticsearchService.get({
+                index: "test",
+                id: id
+            }).then((result) => {
+                
+               if(result.error){
+                   reject(result.error)
+               }
+                
+                const { body } = result;
+                const user = {
+                    id: body._id,
+                    customer: body._source.customer,
+                    phone: body._source.phone,
+                };
+
+                resolve(user);
+
+            }).catch(e => { console.error(e);reject(e) });
         });   
     }
 
@@ -344,35 +330,38 @@ export class UserService {
 
     async resetPassword(phone, activation_code, newPass){
         return new Promise((resolve, reject) => {
+
+            // Case password Lost and request to reset it, Step 1
             if(!activation_code || !newPass){
                 const activation_code = this.generateActivationCode();
+                
                 this.findOne(phone).then((user) => {
+
                     user.activation_code = activation_code;
                     user.activation_code_created_at = new Date().getTime();
+
                     this.updateUser(user).then(() => {
                         this.smsService.sendSms(`Your activation code is ${activation_code}`, phone);
                         resolve('Password reseted');
                     }).catch(e => reject(e))
                 }).catch(e => reject(e));
-            } else if(phone && activation_code && newPass){
+            } 
+
+            // Case reveived activation code and put new pass, Step 2
+            else if(phone && activation_code && newPass){
                 this.findOne(phone).then((user) => {
                     if(activation_code == user.activation_code){
-                        
-                        if(this.timeInterval(user.activation_code_created_at, new Date().getTime() > 60)){
-                            bcrypt.hash(newPass, this.saltOrRounds).then((hash) => {
-                                user.password = hash;
-                                user.active = true;
-                                this.updateUser(user).then(() => {
-                                    resolve('Password changed')
-                                }).catch(e => reject(e))
-                            }).catch(e => reject(e));
+                        const isValid = this.checkActivationCode(activation_code, user.activation_code_created_at);
+                        if(isValid){
+                            this.changePassword(user, newPass).then(() => { resolve('Password changed') }).catch(e => reject(e));
                         }else{
                             reject('Given credentials expired');
                         }
-
                     }else{ reject('Wrong activation code'); }
                 }).catch(e => reject(e))
-            }else{
+            }
+            
+            else{
                 reject('Wrong credentials given');
             }
         })
@@ -392,12 +381,65 @@ export class UserService {
     }
 
     generateActivationCode(){
-        const activation_code = Math.floor((Math.random() * 99999) + 1000);
+        const avtivationCodeLength = this.configService.get('user_space').activation_code_length;
+        const activation_code = Math.floor((Math.random() * avtivationCodeLength) + 1000);
         return activation_code;
     }
 
+    generatePass(firstname, lastname, phone){
+        return this.reverse(firstname) + (phone+9000) + this.reverse(lastname.toUpperCase());
+    }
+
     timeInterval( timestamp1, timestamp2){
-        const hourInterval = Math.round(timestamp1/60/60) - Math.round(timestamp2/60/60);
-        return hourInterval;
-      }
+        const interval = Math.round(timestamp2/60/60/60) - Math.round(timestamp1/60/60/60);
+        console.log(interval)
+        return interval;
+    }
+
+    checkActivationCode(activation_code, creation_timestamp){
+        const creationInterval = this.timeInterval(creation_timestamp, new Date().getTime());
+        const validityInterval = this.configService.get('user_space').activation_code_validity;
+
+        if(isNaN(activation_code)){
+            return false;
+        }else if(isNaN(creation_timestamp)){
+            return false;
+        }else if(creationInterval > validityInterval){
+            return false;
+        }
+
+        return true;
+    }
+
+    reverse(str){
+        return str.split("").reverse().join("");
+    }
+
+    async resendActivationCode(phone){
+        return new Promise((resolve, reject) => {
+            this.findOne(phone).then((user) => {
+
+                const isValid = this.checkActivationCode(user.activation_code, user.activation_code_created_at);
+                if(user.activation_code == 0){
+                    reject('No activation code requested by this user');
+                }else if(isValid){
+                    this.smsService.sendSms(`Your Activation code is ${user.activation_code}`, phone);
+                    resolve('Code sended');
+                }else{
+                    const new_activation_code = this.generateActivationCode();
+                    user.activation_code = new_activation_code;
+                    user.activation_code_created_at = new Date().getTime();
+                    this.smsService.sendSms(`Your Activation code is ${new_activation_code}`, phone);
+                    this.updateUser(user).then(() => { resolve('New Code sended') }).catch(e => reject(e));
+                }
+            }).catch(e => reject(e));
+        });
+    }
+
+    checkPassword(password){
+        if(password.toString().length < 8){
+            return false;
+        }
+        return true;
+    }
 }

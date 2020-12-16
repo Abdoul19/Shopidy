@@ -59,12 +59,14 @@ export class UserController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('readUser')
-  @Bind(Body())
-  async readeUser(data){
-    const { phone } = data;
+  @Bind(Request())
+  async readeUser(req){
+    const id = req.user.userId;
+    
     try{
-      return await this.userService.readUser(phone);
+      return await this.userService.readUser(id);
     }catch(e){ 
       throw new HttpException(
         { 
@@ -76,6 +78,7 @@ export class UserController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('updateUser')
   @Bind(Body())
   async updateUser(data){
@@ -93,6 +96,7 @@ export class UserController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('deleteUser')
   @Bind(Body())
   async deleteUser(data){
@@ -166,9 +170,20 @@ export class UserController {
     }
   }
   
-  @Post('ResendActivationCode')
+  @Post('resendActivationCode')
   @Bind(Body())
   async resendPassword(data){
-
+    const { phone} = data;
+    try{
+      return await this.userService.resendActivationCode(phone);
+    }catch(e) {
+      throw new HttpException(
+        { 
+          status: HttpStatus.NOT_FOUND,
+          error: e
+        }, 
+        HttpStatus.NOT_FOUND
+      )
+    }
   }
 }

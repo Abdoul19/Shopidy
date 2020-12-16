@@ -16,18 +16,19 @@ export class AuthService {
     const passwordCheck = await bcrypt.compare(pass, user.password);
 
     if (user && passwordCheck) {
+      const timeInterval = this.userService.timeInterval(user.customer_token_created_at, new Date().getTime() )
       // if user is authenticated, we generate magento token for request
       // And then atach this token to user object
       if(!user.customer_token){
         
-        const customer_token = await this.userService.getCustomerToken(user.customer.email, pass);
+        const customer_token = await this.userService.getCustomerToken(user.customer.firstname, user.customer.lastname, user.customer.email, user.phone);
         user.customer_token = customer_token;
         user.customer_token_created_at = new Date().getTime();
         await this.userService.updateUser(user);
 
-      }else if( await this.timeInterval(user.customer_token_created_at, new Date().getTime() ) > 1 ){
+      }else if( timeInterval > 60 ){
         
-        const customer_token = await this.userService.getCustomerToken(user.customer.email, pass);
+        const customer_token = await this.userService.getCustomerToken(user.customer.firstname, user.customer.lastname, user.customer.email, user.phone);
         user.customer_token = customer_token;
         user.customer_token_created_at = new Date().getTime();
         await this.userService.updateUser(user);
@@ -52,7 +53,7 @@ export class AuthService {
   }
 
   async timeInterval( timestamp1, timestamp2){
-    const hourInterval = Math.round(timestamp1/60/60) - Math.round(timestamp2/60/60);
+    const hourInterval = Math.round(timestamp2/60) - Math.round(timestamp1/60/60);
     return hourInterval;
   }
 

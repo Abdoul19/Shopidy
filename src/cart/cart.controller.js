@@ -156,8 +156,4 @@ export class CartController {
             return e;
         }
     }
-
-    // @Get('deleteCart/:cartId')
-    // @Bind(Param())
-    // async deleteCart(cardId){}
 }

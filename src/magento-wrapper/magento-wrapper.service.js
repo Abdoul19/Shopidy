@@ -20,7 +20,6 @@ export class MagentoWrapperService {
             //     return data;
             // }],
             transformRequest: [(data, headers) => {
-                
                 // if(headers.Authorization == undefined){
                 //     headers.Authorization = `Bearer ${this.configService.get('magento2').accessToken}`;
                 // }

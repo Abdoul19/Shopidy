@@ -8,6 +8,7 @@ import { resolveConfig } from 'prettier';
 export class SmsService {
   constructor(ConfigService){
     this.configService = ConfigService;
+    
     this.smsClient = axios.create({
       baseURL: `${this.configService.get('smsApi').baseUrl}`,
       headers: {'Authorization': `Bearer ${this.configService.get('smsApi').accessToken}`, 'Content-Type': 'application/json'}
