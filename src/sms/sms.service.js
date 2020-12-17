@@ -1,14 +1,14 @@
 import { Injectable, Dependencies } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import { resolveConfig } from 'prettier';
+import { LoggerService } from '../logger/logger.service';
 
 @Injectable()
 @Dependencies(ConfigService)
 export class SmsService {
   constructor(ConfigService){
     this.configService = ConfigService;
-    
+    this.logger = new LoggerService;
     this.smsClient = axios.create({
       baseURL: `${this.configService.get('smsApi').baseUrl}`,
       headers: {'Authorization': `Bearer ${this.configService.get('smsApi').accessToken}`, 'Content-Type': 'application/json'}
@@ -28,7 +28,10 @@ export class SmsService {
             }
           }
         }
-      ).then((res) => { resolve(res.data)}).catch(e => reject(e))
+      ).then((res) => { resolve(res.data)}).catch(e => {
+        this.logger.error(e);
+        reject(e)
+    })
     });
   }
 }

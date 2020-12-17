@@ -136,7 +136,6 @@ export class UserController {
   @Post('changePassword')
   @Bind(Request())
   async changePassword(req){
-    console.log(req.body);
     const phone = req.body.phone
     const newPass = req.body.password
     try{

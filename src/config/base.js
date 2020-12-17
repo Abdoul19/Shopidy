@@ -11,4 +11,5 @@ export default () => ({
     activation_code_validity: 60,
     activation_code_length: 999999,
   },
+  elasticsearch_node: 'http://18.135.75.160:9200'
 });

@@ -4,6 +4,7 @@ import { ElasticsearchService } from '@nestjs/elasticsearch'
 import * as bcrypt from 'bcrypt';
 import { MagentoWrapperService } from '../magento-wrapper/magento-wrapper.service';
 import { SmsService } from '../sms/sms.service'
+import { LoggerService } from '../logger/logger.service'
 
 @Injectable()
 @Dependencies(ConfigService, MagentoWrapperService, ElasticsearchService, SmsService)
@@ -14,6 +15,7 @@ export class UserService {
         this.elasticsearchService = ElasticsearchService;
         this.saltOrRounds = 10;
         this.smsService = SmsService;
+        this.logger = new LoggerService;
     }
 
     async findOne(number) {
@@ -35,7 +37,10 @@ export class UserService {
                     
                     resolve(user);
                 }).catch(e => { reject(e) });
-            }).catch(() => { reject("Unrecognized Phone number") });
+            }).catch((e) => { 
+                this.logger.error(e);
+                reject("Unrecognized Phone number") 
+            });
         });
     }
 
@@ -94,7 +99,6 @@ export class UserService {
                 const res = await this.MagentoClient.get(`customers/${userId}`);
                 return res;
             }catch(e){
-                console.error(e);
                 return e;
             }
     }
@@ -110,8 +114,6 @@ export class UserService {
             
             this.checkNumber(user.phone).then(() => {
                 this.MagentoClient.put(`customers/${customer.id}`, {customer}).then((data) => {
-                    // console.log(data);
-                    // resolve(data);
                     const {id, ...body} = user;
                     body.customer = data;
                     this.elasticsearchService.index({
@@ -127,8 +129,14 @@ export class UserService {
                         );
                     }).catch(e => reject("Error on database " + e));
 
-                }).catch(e => reject(e));
-            }).catch(e => reject(e));
+                }).catch(e => {
+                    this.logger.error(e);
+                    reject(e)
+                });
+            }).catch(e => {
+                this.logger.error(e);
+                reject(e)
+            });
             
         });
     }
@@ -146,7 +154,10 @@ export class UserService {
                     }
                 }).then(() => {
                     resolve("User deleted");
-                }).catch((e) => {reject(e)});
+                }).catch((e) => {
+                    this.logger.error(e);
+                    reject(e)
+                });
 
             }).catch(e => {
                 reject(e);
@@ -176,6 +187,7 @@ export class UserService {
                 }
             ).then((data) => {
                 if(data.name == 'Error'){
+                    this.logger.error(data)
                     reject(data)
                 }
                 resolve(data);
@@ -188,6 +200,7 @@ export class UserService {
         return new Promise((resolve, reject) => {
 
             if(!this.checkPassword(user.password)){
+
                 reject("Password too short");
             }
             
@@ -217,7 +230,7 @@ export class UserService {
 
                 // First post customer object in magento database, if this call succes then create customer object in our database
                 this.MagentoClient.post('customers', {customer, password: pass}).then((data) => {
-                    //console.log(data)
+
                     if(data.name !== 'Error'){
 
                     //User well added in magento so we hash 
@@ -237,13 +250,19 @@ export class UserService {
                             this.smsService.sendSms(`Your Activation code is ${activation_code}`, user.phone);
                             resolve({ id: _id });
                         }).catch(e => reject("Error on database " + e));
-                    }).catch(e => reject("Error on hashing password" + e));
+                    }).catch(e => {
+                        this.logger.error(e);
+                        reject(e)
+                    });
 
                     }else{
                         reject(data)
                     }
 
-                }).catch(e => reject(e));
+                }).catch(e => {
+                    this.logger.error(e);
+                    reject(e)
+                });
                  
 
             });
@@ -271,12 +290,14 @@ export class UserService {
 
                 resolve(user);
 
-            }).catch(e => { console.error(e);reject(e) });
+            }).catch(e => {
+                this.logger.error(e);
+                reject(e)
+            });
         });   
     }
 
     async activateUser(activation_code, phone, pass){
-        console.error(phone)
         return new Promise((resolve, reject) => {
             
             this.findOne(phone).then((user) => {
@@ -295,7 +316,10 @@ export class UserService {
                         reject('Wrong activation code given');
                     }
                 });
-            }).catch(e => reject(e));
+            }).catch(e => {
+                this.logger.error(e);
+                reject(e)
+            });
         });
     }
 
@@ -324,7 +348,10 @@ export class UserService {
                 }
 
                 reject();
-            }).catch(e => { reject(e) });
+            }).catch(e => {
+                this.logger.error(e);
+                reject(e)
+            });
         });
     }
 
@@ -343,8 +370,14 @@ export class UserService {
                     this.updateUser(user).then(() => {
                         this.smsService.sendSms(`Your activation code is ${activation_code}`, phone);
                         resolve('Password reseted');
-                    }).catch(e => reject(e))
-                }).catch(e => reject(e));
+                    }).catch(e => {
+                        this.logger.error(e);
+                        reject(e)
+                    })
+                }).catch(e => {
+                    this.logger.error(e);
+                    reject(e)
+                });
             } 
 
             // Case reveived activation code and put new pass, Step 2
@@ -358,7 +391,10 @@ export class UserService {
                             reject('Given credentials expired');
                         }
                     }else{ reject('Wrong activation code'); }
-                }).catch(e => reject(e))
+                }).catch(e => {
+                    this.logger.error(e);
+                    reject(e)
+                })
             }
             
             else{
@@ -375,7 +411,10 @@ export class UserService {
                 bcrypt.hash(newPass, this.saltOrRounds).then((hash) => {
                     user.password = hash;
                     this.updateUser(user).then(() => { resolve('Password updated')}).catch((e) => { reject(e) })        
-                }).catch(e => reject(e));
+                }).catch(e => {
+                    this.logger.error(e);
+                    reject(e)
+                });
             }
         );
     }
@@ -392,7 +431,6 @@ export class UserService {
 
     timeInterval( timestamp1, timestamp2){
         const interval = Math.round(timestamp2/60/60/60) - Math.round(timestamp1/60/60/60);
-        console.log(interval)
         return interval;
     }
 
@@ -430,9 +468,15 @@ export class UserService {
                     user.activation_code = new_activation_code;
                     user.activation_code_created_at = new Date().getTime();
                     this.smsService.sendSms(`Your Activation code is ${new_activation_code}`, phone);
-                    this.updateUser(user).then(() => { resolve('New Code sended') }).catch(e => reject(e));
+                    this.updateUser(user).then(() => { resolve('New Code sended') }).catch(e => {
+                        this.logger.error(e);
+                        reject(e)
+                    });
                 }
-            }).catch(e => reject(e));
+            }).catch(e => {
+                this.logger.error(e);
+                reject(e)
+            });
         });
     }
 
