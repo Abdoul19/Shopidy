@@ -1,0 +1,50 @@
+ersion: '2'
+
+networks:
+  shopidy-backend:
+    driver: bridge
+
+services:
+  elasticsearch:
+    image: 'bitnami/elasticsearch:7-debian-10'
+    networks:
+      - shopidy-backend
+    ports:
+      - '9200:9200'
+    volumes:
+      - 'elasticsearch_data:/bitnami/elasticsearch/data'
+    environment:
+      - ELASTICSEARCH_PORT_NUMBER=9200
+  kibana:
+    image: 'bitnami/kibana:7-debian-10'
+    ports:
+      - '5601:5601'
+    volumes:
+      - 'kibana_data:/bitnami'
+    networks:
+      - shopidy-backend
+    depends_on:
+      - elasticsearch
+  nestjs:
+    image: "node:15"
+    user: "node"
+    working_dir: /home/node/app
+    # environment:
+    #   - NODE_ENV=production
+    volumes:
+      - ./:/home/node/app
+    expose:
+      - "3000"
+    command: ["npm install","npm start",]
+#     image: 'bitnami/node:12-debian-10'
+#     ports:
+#       - '3000:3000'
+#     volumes:
+#       - '/home/abdoul/Lab/Shopidy:/app'
+#     command: sh -c 'npm install && npm start'
+
+volumes:
+  elasticsearch_data:
+    driver: local
+  kibana_data:
+    driver: local
