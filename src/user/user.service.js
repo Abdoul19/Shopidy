@@ -44,70 +44,6 @@ export class UserService {
         });
     }
 
-    /**
-     *
-     *
-     * @param {String} email
-     * @return {Object} user
-     * @memberof UserService
-     */
-    async searchUser(email){
-        const params = {
-            searchCriteria: {
-                filter_groups: {
-                    0: {
-                        filters: {
-                            0: {
-                                field: 'email',
-                                value: `${email}`,
-                                condition_Type: 'eq'
-                            }
-                        }
-                    }
-                },
-                currentPage: 1,
-                pageSize: 10,
-            },
-        }
-        try{
-            const res = await this.MagentoClient.get('customers/search', {
-                params: params     
-            });
-            const user = res.items[0];
-            if(user == undefined){
-                return {
-                    name: 'Error',
-                    statusCode: '404',
-                    statuText: 'User not found'
-                }
-            }
-            return user;
-        }catch(e){
-            return e;
-        }
-    }
-
-    /**
-     *
-     *
-     * @param {number} userId
-     * @return {Promise<{id: number, name: string}>} user 
-     * @memberof UserService
-     */
-    async getUser(userId){
-            try{
-                const res = await this.MagentoClient.get(`customers/${userId}`);
-                return res;
-            }catch(e){
-                return e;
-            }
-    }
-
-    async createUser(user){
-          const store = await this.datastoreService.createStore(this.recordType);
-          return store.create(this.recordName, user);
-    }
-
     async updateUser(user){
         return new Promise((resolve, reject) => {
             const customer = user.customer;
@@ -166,14 +102,7 @@ export class UserService {
         });
     }
 
-    /**
-     *
-     *
-     * @param {string} email
-     * @param {string} password
-     * @return {string} Token 
-     * @memberof UserService
-     */
+    
     async getCustomerToken(firstname, lastname, email, phone){
         return new Promise((resolve, reject) => {
             const pass = this.generatePass(firstname, lastname, phone);
