@@ -244,7 +244,7 @@ export class UserService {
                 const activation_code_is_valid = this.checkActivationCode(activation_code, user.activation_code_created_at);
                 if(activation_code.toString().length < 4){
                     reject('Activation code must be 4 digit')
-                }else if(activation_code_is_valid){
+                }else if(!activation_code_is_valid){
                     reject('Activation expired')
                 }else if(user.active == true){
                     reject('User already activated')
