@@ -155,9 +155,9 @@ export class UserController {
   @Post('resetPassword')
   @Bind(Body())
   async resetPassword(data){
-    const { phone, activation_code, newPass } = data;
+    const { phone, activation_code, new_pass } = data;
     try{
-      return await this.userService.resetPassword(phone, activation_code, newPass);
+      return await this.userService.resetPassword(phone, activation_code, new_pass);
     }catch(e) {
       throw new HttpException(
         { 
