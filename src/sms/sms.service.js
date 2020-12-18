@@ -8,7 +8,7 @@ import { LoggerService } from '../logger/logger.service';
 export class SmsService {
   constructor(ConfigService){
     this.configService = ConfigService;
-    this.logger = new LoggerService;
+    this.logger = new LoggerService('SmsService', true);
     this.smsClient = axios.create({
       baseURL: `${this.configService.get('smsApi').baseUrl}`,
       headers: {'Authorization': `Bearer ${this.configService.get('smsApi').accessToken}`, 'Content-Type': 'application/json'}
@@ -29,9 +29,50 @@ export class SmsService {
           }
         }
       ).then((res) => { resolve(res.data)}).catch(e => {
-        this.logger.error(e);
-        reject(e)
-    })
+        if(e.code == 'ECONNRESET'){
+          this.logger.warn(e);
+          // Second attemp to send message
+          this.smsClient.post(
+            `smsmessaging/v1/outbound/tel%3A%2B${this.configService.get('smsApi').senderPhoneNumber}/requests`, 
+            {
+              outboundSMSMessageRequest: {
+                address: `tel:+223${recipient}`,
+                senderAddress: `tel:+${this.configService.get('smsApi').senderPhoneNumber}`,
+                outboundSMSTextMessage: {
+                  message
+                }
+              }
+            }
+          ).then((res) => { resolve(res.data)})
+          .catch(e => {
+            if(e.code == 'ECONNRESET'){
+              this.logger.warn(e);
+              // Third attempt to send message
+              this.smsClient.post(
+                `smsmessaging/v1/outbound/tel%3A%2B${this.configService.get('smsApi').senderPhoneNumber}/requests`, 
+                {
+                  outboundSMSMessageRequest: {
+                    address: `tel:+223${recipient}`,
+                    senderAddress: `tel:+${this.configService.get('smsApi').senderPhoneNumber}`,
+                    outboundSMSTextMessage: {
+                      message
+                    }
+                  }
+                }
+              ).then((res) => { resolve(res.data)}).catch(e => {
+                this.logger.error(e);
+                reject(e)
+              })
+            }
+            this.logger.error(e);
+            reject(e)
+          })
+
+        }else{
+          this.logger.error(e);
+          reject(e)
+        }
+      })
     });
   }
 }

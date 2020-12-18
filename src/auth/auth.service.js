@@ -53,7 +53,7 @@ export class AuthService {
   }
 
   async timeInterval( timestamp1, timestamp2){
-    const hourInterval = Math.round(timestamp2/60) - Math.round(timestamp1/60/60);
+    const hourInterval = Math.round(timestamp2/60/60) - Math.round(timestamp1/60/60);
     return hourInterval;
   }
 

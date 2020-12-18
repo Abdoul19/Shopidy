@@ -15,31 +15,35 @@ export class UserService {
         this.elasticsearchService = ElasticsearchService;
         this.saltOrRounds = 10;
         this.smsService = SmsService;
-        this.logger = new LoggerService;
+        this.logger = new LoggerService('UserService');
     }
 
     async findOne(number) {
         return new Promise((resolve, reject) => {
-            this.checkNumber(number).then(() => {
-                this.elasticsearchService.search({
-                    index: "test",
-                    body: {
-                        query:{
-                            match:{
-                                phone: number
+            this.checkNumber(number).then((result) => {
+                if(result){
+                    this.elasticsearchService.search({
+                        index: "test",
+                        body: {
+                            query:{
+                                match:{
+                                    phone: number
+                                }
                             }
                         }
-                    }
-                }).then((result) => {
-                    const {body: { hits: { hits } } } = result;
-                    const user = hits[0]._source;
-                    user.id = hits[0]._id;
-                    
-                    resolve(user);
-                }).catch(e => { reject(e) });
+                    }).then((result) => {
+                        const {body: { hits: { hits } } } = result;
+                        const user = hits[0]._source;
+                        user.id = hits[0]._id;
+                        
+                        resolve(user);
+                    }).catch(e => { reject(e) });
+                }else{
+                    reject("Unrecognized Phone number")
+                }
             }).catch((e) => { 
                 this.logger.error(e);
-                reject("Unrecognized Phone number") 
+                reject(e) 
             });
         });
     }
@@ -48,27 +52,31 @@ export class UserService {
         return new Promise((resolve, reject) => {
             const customer = user.customer;
             
-            this.checkNumber(user.phone).then(() => {
-                this.MagentoClient.put(`customers/${customer.id}`, {customer}).then((data) => {
-                    const {id, ...body} = user;
-                    body.customer = data;
-                    this.elasticsearchService.index({
-                        index: "test",
-                        id,
-                        body
-                    }).then((response) => {
-                        const { body: {_id}, statusCode } = response;
-                        resolve(
-                            {
-                                id: _id
-                            }
-                        );
-                    }).catch(e => reject("Error on database " + e));
+            this.checkNumber(user.phone).then((result) => {
+                if(result){
+                    this.MagentoClient.put(`customers/${customer.id}`, {customer}).then((data) => {
+                        const {id, ...body} = user;
+                        body.customer = data;
+                        this.elasticsearchService.index({
+                            index: "test",
+                            id,
+                            body
+                        }).then((response) => {
+                            const { body: {_id}, statusCode } = response;
+                            resolve(
+                                {
+                                    id: _id
+                                }
+                            );
+                        }).catch(e => reject("Error on database " + e));
 
-                }).catch(e => {
-                    this.logger.error(e);
-                    reject(e)
-                });
+                    }).catch(e => {
+                        this.logger.error(e);
+                        reject(e)
+                    });
+                }else{
+                    reject("Wrong phone number given");    
+                }
             }).catch(e => {
                 this.logger.error(e);
                 reject(e)
@@ -140,10 +148,12 @@ export class UserService {
                 reject("Lastname must be at least 2")
             }
 
-            this.checkNumber(user.phone).then(() => {
-                // A resolved promise here mean that phone number is already in database, that's why we reject adding new user with the same number
-                reject("Phone number already in use")
-            }).catch(() => {
+            this.checkNumber(user.phone).then((result) => {
+                if(result){
+                    // A resolved promise here mean that phone number is already in database, that's why we reject adding new user with the same number
+                    reject("Phone number already in use")
+                }else{
+                
                 //User not present in  database, so we create new 
                 // const firstname = user.firstname;
                 // First create customer object to put in magento backend
@@ -176,7 +186,8 @@ export class UserService {
                             }
                         }).then((response) => {
                             const { body: {_id}, statusCode } = response;
-                            this.smsService.sendSms(`Your Activation code is ${activation_code}`, user.phone);
+                            //this.smsService.sendSms(`Your Activation code is ${activation_code}`, user.phone);
+                            console.log(response);
                             resolve({ id: _id });
                         }).catch(e => reject("Error on database " + e));
                     }).catch(e => {
@@ -192,9 +203,9 @@ export class UserService {
                     this.logger.error(e);
                     reject(e)
                 });
-                 
-
-            });
+                }
+                
+            }).catch((e) => { this.logger.error(e); reject(e)});
                 
         }); 
     }
@@ -233,18 +244,29 @@ export class UserService {
                 
                 if(activation_code.toString().length < 4){
                     reject('Activation code must be 4 digit')
-                }else if(this.timeInterval(user.activation_code_created_at, new Date().getTime() > 60))
-
-                bcrypt.compare(pass, user.password).then(() => {
-                    
-                    if(activation_code == user.activation_code){
-                        user.active = true;
-                        
-                        this.updateUser(user).then(() => { resolve('User Activated')}).catch(e => reject(e))
-                    }else{
-                        reject('Wrong activation code given');
-                    }
-                });
+                }else if(this.timeInterval(user.activation_code_created_at, new Date().getTime()) > 60){
+                    console.log(this.timeInterval(user.activation_code_created_at, new Date().getTime()) > 60)
+                    reject('Activation expired')
+                }else if(user.active == true){
+                    reject('User already activated')
+                }else{
+                    bcrypt.compare(pass, user.password).then((result) => {
+                        if(result){
+                            if(activation_code == user.activation_code){
+                                user.active = true;
+                                
+                                this.updateUser(user).then(() => { resolve('User Activated')}).catch(e => reject(e))
+                            }else{
+                                reject('Wrong activation code given');
+                            }
+                        }else{
+                            reject('Wrong Password');    
+                        }
+                    }).catch((e) => {
+                        this.logger.error(e); 
+                        reject(e)
+                    });
+                }
             }).catch(e => {
                 this.logger.error(e);
                 reject(e)
@@ -269,19 +291,23 @@ export class UserService {
                 }
             }).then((result) => {
                 if(!result[0]){
-                    reject(false);
+                    resolve(false);
                 }
                 const {phone} = result[0];
                 if(phone){
-                    resolve();
+                    resolve(true);
                 }
 
                 reject();
             }).catch(e => {
-                this.logger.error(e);
+                const {meta: { body: { error: { type } } } } = e;
+                if(type == 'index_not_found_exception'){
+                    resolve(false);
+                }
                 reject(e)
             });
         });
+
     }
 
     async resetPassword(phone, activation_code, newPass){
@@ -359,8 +385,10 @@ export class UserService {
     }
 
     timeInterval( timestamp1, timestamp2){
-        const interval = Math.round(timestamp2/60/60/60) - Math.round(timestamp1/60/60/60);
+        const interval = Math.round((timestamp2/1000/60 - timestamp1/1000/60));
         return interval;
+
+
     }
 
     checkActivationCode(activation_code, creation_timestamp){

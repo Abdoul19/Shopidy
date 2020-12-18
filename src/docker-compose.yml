@@ -1,4 +1,4 @@
-ersion: '2'
+version: '2'
 
 networks:
   shopidy-backend:
@@ -33,9 +33,9 @@ services:
     #   - NODE_ENV=production
     volumes:
       - ./:/home/node/app
-    expose:
-      - "3000"
-    command: ["npm install","npm start",]
+    ports:
+      - "3000:3000"
+    command: "npm start"
 #     image: 'bitnami/node:12-debian-10'
 #     ports:
 #       - '3000:3000'
