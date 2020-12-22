@@ -186,7 +186,7 @@ export class UserService {
                             }
                         }).then((response) => {
                             const { body: {_id}, statusCode } = response;
-                            //this.smsService.sendSms(`Your Activation code is ${activation_code}`, user.phone);
+                            this.smsService.sendSms(`Your Activation code is ${activation_code}`, user.phone);
                             console.log(response);
                             resolve({ id: _id });
                         }).catch(e => reject("Error on database " + e));
@@ -241,11 +241,10 @@ export class UserService {
         return new Promise((resolve, reject) => {
             
             this.findOne(phone).then((user) => {
-                
+                const activation_code_is_valid = this.checkActivationCode(activation_code, user.activation_code_created_at);
                 if(activation_code.toString().length < 4){
                     reject('Activation code must be 4 digit')
-                }else if(this.timeInterval(user.activation_code_created_at, new Date().getTime()) > 60){
-                    console.log(this.timeInterval(user.activation_code_created_at, new Date().getTime()) > 60)
+                }else if(!activation_code_is_valid){
                     reject('Activation expired')
                 }else if(user.active == true){
                     reject('User already activated')
@@ -323,7 +322,7 @@ export class UserService {
                     user.activation_code_created_at = new Date().getTime();
 
                     this.updateUser(user).then(() => {
-                        this.smsService.sendSms(`Your activation code is ${activation_code}`, phone);
+                        this.smsService.sendSms(`Your password reset code is ${activation_code}`, phone);
                         resolve('Password reseted');
                     }).catch(e => {
                         this.logger.error(e);

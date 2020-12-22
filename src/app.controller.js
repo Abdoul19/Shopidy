@@ -23,6 +23,11 @@ export class AppController {
     }
      //return 'Hello World';
     
+<<<<<<< HEAD
+=======
+    return 'Hello World';
+    
+>>>>>>> 0f485f5390f685de0e9431a19270e29735a03859
   }
 
   createSortFilter(field, direction){
