@@ -299,10 +299,10 @@ export class UserService {
 
                 reject();
             }).catch(e => {
-                const {meta: { body: { error: { type } } } } = e;
-                if(type == 'index_not_found_exception'){
-                    resolve(false);
-                }
+                // const {meta: { body: { error: { type } } } } = e;
+                // if(type == 'index_not_found_exception'){
+                //     resolve(false);
+                // }
                 reject(e)
             });
         });

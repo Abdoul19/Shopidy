@@ -10,7 +10,7 @@ import base from './config/base';
 import smsApi from './config/smsApi';
 import databaseConfig from './config/databaseConfig';
 // import { DatastoreModule } from './datastore/datastore.module';
-// import { StoreModule } from './store/store.module';
+ import { StoreModule } from './store/store.module';
 // import { CartModule } from './cart/cart.module';
 import { LoggerModule } from './logger/logger.module';
 
@@ -21,6 +21,7 @@ import { LoggerModule } from './logger/logger.module';
       load: [base, databaseConfig, smsApi],
     }),
     UserModule,
+    StoreModule,
     MagentoWrapperModule,
     AuthModule,
     LoggerModule,

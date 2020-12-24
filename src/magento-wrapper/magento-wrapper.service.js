@@ -34,6 +34,7 @@ export class MagentoWrapperService {
         return new Promise((resolve, reject) => {
             this.MagentoClient.get(url, config).then((res) => {
                 const {data} = res;
+                // console.log(res)
                 resolve(data);
             }).catch(e => reject(e));
         });
