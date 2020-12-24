@@ -187,7 +187,6 @@ export class UserService {
                         }).then((response) => {
                             const { body: {_id}, statusCode } = response;
                             this.smsService.sendSms(`Your Activation code is ${activation_code}`, user.phone);
-                            console.log(response);
                             resolve({ id: _id });
                         }).catch(e => reject("Error on database " + e));
                     }).catch(e => {
