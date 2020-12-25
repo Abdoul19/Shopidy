@@ -1,6 +1,7 @@
-import { Controller, Dependencies, Get, Post, Body, Bind, Param } from '@nestjs/common';
+import { Controller, Dependencies, Get, Post, Bind, Body, HttpStatus, Param, Request, UseGuards, HttpException } from '@nestjs/common';
 import {UserService} from '../user/user.service';
 import { CartService } from './cart.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Dependencies(CartService, UserService)
 @Controller('cart')
@@ -19,12 +20,22 @@ export class CartController {
      * @return {*} 
      * @memberof CartController
      */
+    @UseGuards(JwtAuthGuard)
     @Post('createCustomerCart')
-    @Bind(Body())
-    async createCustomerCart(data){
-        const { customerId } = data;
-        const quote = await this.cartService.createCustomerCart(customerId);
-        return quote;
+    @Bind(Request())
+    async createCustomerCart(req){
+        const { user: { userPhone } } = req
+        try {
+            const cartId = await this.cartService.createCustomerCart(userPhone);
+            return {cartId: cartId};   
+        } catch (e) {
+            throw new HttpException(
+                { 
+                  status: HttpStatus.BAD_REQUEST
+                }, 
+                HttpStatus.BAD_REQUEST
+              )
+        }
     }
 
     @Get('createGuestCart')
@@ -38,6 +49,7 @@ export class CartController {
         
     }
 
+    @UseGuards(JwtAuthGuard)
     @Get('getCart/:cardId')
     @Bind(Param('cardId'))
     async getCart(cartId){
@@ -45,22 +57,35 @@ export class CartController {
             const res = await this.cartService.getCart(cartId);
             return res;
         }catch(e){
-            return e;
+            throw new HttpException(
+                { 
+                  status: HttpStatus.BAD_REQUEST
+                }, 
+                HttpStatus.BAD_REQUEST
+              )
         }
     }
 
+    @UseGuards(JwtAuthGuard)
     @Post('addItemToCart')
-    @Bind(Body())
-    async addItemToCart(data){
-        const {cartItem, cartId} = data;
-        try{
-            const res = await this.cartService.addItemToCart(cartItem, cartId);
+    @Bind(Request())
+    async addItemToCart(req){
+        const {body: {cartItem}, user: {userPhone } } = req;
+        try
+        {
+            const res = await this.cartService.addItemToCart(cartItem, userPhone);
             return res;
         }catch(e){
-            return e;
+            throw new HttpException(
+                { 
+                  status: HttpStatus.BAD_REQUEST
+                }, 
+                HttpStatus.BAD_REQUEST
+            )
         }
     }
 
+    @UseGuards(JwtAuthGuard)
     @Post('removeItemFromCart')
     @Bind(Body())
     async removeItemFromCart(data){
@@ -70,32 +95,49 @@ export class CartController {
             const res = await this.cartService.removeItemFromCart(cartId, itemId);
             return res;
         }catch(e){
-            return e;
+            throw new HttpException(
+                { 
+                  status: HttpStatus.BAD_REQUEST
+                }, 
+                HttpStatus.BAD_REQUEST
+            )
         } 
     }
 
+    @UseGuards(JwtAuthGuard)
     @Post('updateCartItem')
     @Bind(Body())
     async updateCartItem(data){
-        const { cartItem, cartId, itemId } = data;
+        const { cartItem } = data;
         try
         {
-            const res = await this.cartService.updateCartItem(cartItem, cartId, itemId);
+            const res = await this.cartService.updateCartItem(cartItem);
             return res;
         }catch(e){
-            return e;
+            throw new HttpException(
+                { 
+                  status: HttpStatus.BAD_REQUEST
+                }, 
+                HttpStatus.BAD_REQUEST
+            )
         }
     }
 
+    @UseGuards(JwtAuthGuard)
     @Post('getShippingMethods')
-    @Bind(Body())
-    async getShippingMethods(data){
-        const { cartId, addressId } = data;
+    @Bind(Request())
+    async getShippingMethods(req){
+        const {Body: {addressId}, user: {userPhone}} = req;
         try{
-            const res = await this.cartService.getShippingMethods(cartId, addressId);
+            const res = await this.cartService.getShippingMethods(userPhone, addressId);
             return res;
         }catch(e){
-            return e;
+            throw new HttpException(
+                { 
+                  status: HttpStatus.BAD_REQUEST
+                }, 
+                HttpStatus.BAD_REQUEST
+            )
         }
     }
 

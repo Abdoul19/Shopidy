@@ -1,6 +1,8 @@
 import { Injectable, Dependencies } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MagentoWrapperService } from '../magento-wrapper/magento-wrapper.service'
+import { UserService } from '../user/user.service';
+import { LoggerService } from '../logger/logger.service'
 
 /**
  * @description
@@ -10,7 +12,7 @@ import { MagentoWrapperService } from '../magento-wrapper/magento-wrapper.servic
  * @export
  * @class CartService
  */
-@Dependencies(MagentoWrapperService, ConfigService)
+@Dependencies(MagentoWrapperService, ConfigService, UserService)
 @Injectable()
 export class CartService {
     /**
@@ -18,9 +20,11 @@ export class CartService {
      * @param {Object} MagentoWrapperService 
      * @param {Object} ConfigService 
      */
-    constructor(MagentoWrapperService, ConfigService){
+    constructor(MagentoWrapperService, ConfigService, UserService){
         this.MagentoClient = MagentoWrapperService;
         this.configService = ConfigService;
+        this.userService = UserService;
+        this.logger = new LoggerService('CartService', true);
     }
 
 /**
@@ -66,6 +70,7 @@ export class CartService {
  /**
   * @typedef { import("../types").shippement } shippement
   */
+
 /**
  * @description
  * @author Itachi
@@ -93,34 +98,38 @@ async createGuestCart(){
  * @description
  * @author Itachi
  * @date 23/10/2020
- * @param {number} customerId
+ * @param {number} userPhone
  * @return {Promise<number>} cartId  
  * @memberof CartService
  */
-async createCustomerCart(customerId){
-    /**
-     * @type {number}
-     */
-    const storeId = this.configService.get('magento2').defaultStoreId;
+async createCustomerCart(userPhone){
+    
+    return new Promise((resolve, reject) => {
+        this.userService.findOne(userPhone).then((user) => {
+            const customerToken = user.customer_token;
 
-    try{
-        const cartId = await this.MagentoClient.post('carts');
-        const cartAtribution = await this.MagentoClient.put(`carts/${cartId}`, 
-            {
-                customerId: customerId,
-                storeId: storeId
+            if(user.cart_id){
+                resolve(user.cart_id);
             }
-        );
-        return cartId;
-        // {
-        //     cartId: cartId,
-        //     customerId: customerId,
-        //     storeId: storeId,
-        //     asign: cartAtribution
-        // };
-    }catch(e){
-        return e;
-    }
+
+            this.MagentoClient.post('carts/mine', {}, { headers: {Authorization: `Bearer ${customerToken}`}}).then((cartId) => {
+                user.cart_id = cartId;
+                this.userService.updateUser(user).then(() => {
+                    resolve(cartId);    
+                }).catch((e) => {
+                    this.logger.error(e);
+                    reject(e);    
+                });
+                
+            }).catch((e) => {
+                this.logger.error(e);
+                reject(e);
+            });;
+        }).catch((e) => {
+            this.logger.error(e);
+            reject(e)
+        });
+    });
 }
 
 /**
@@ -132,20 +141,28 @@ async createCustomerCart(customerId){
  * @return {Promise<cartItem | error>} cartItem | error
  * @memberof CartService
  */
-async addItemToCart(cartItem, cartId){
-    try{
-        /**
-         * @type {cartItem}
-         */
-        const item = this.MagentoClient.post(`carts/${cartId}/items`, 
+async addItemToCart(cartItem, userPhone){
+    
+    return new Promise((resolve, reject) => {
+        this.userService.findOne(userPhone).then((user) => {
+            this.MagentoClient.post(`carts/mine/items`, 
             {
                 cartItem: cartItem
+            },
+            {
+                headers: { Authorization: `Bearer ${user.customer_token}`}
             }
-        )
-        return item;
-    }catch(e){
-        return e;
-    }
+        ).then((result) => {
+            resolve(result);
+        }).catch((e) => {
+            this.logger.error(e);
+            reject(e)
+        }); 
+        }).catch((e) => {
+            this.logger.error(e);
+            reject(e)
+        });
+    });
 }
 /**
  * @description
@@ -178,23 +195,22 @@ async addItemToGuestCart(cartItem, cartId){
  * @author Itachi
  * @date 23/10/2020
  * @param {cartItem} cartItem
- * @param {number} cartId
- * @param {number} itemId
  * @return {Promise<cartItem | error>} cartItem | error   
  * @memberof CartService
  */
-async updateCartItem(cartItem, cartId, itemId){
-    try
-    {
-        const item = await this.MagentoClient.put(`carts/${cartId}/items/${itemId}`, 
+async updateCartItem(cartItem){
+    return new Promise((resolve, reject) => {
+        this.MagentoClient.put(`carts/${cartItem.quote_id}/items/${cartItem.item_id}`, 
             {
                 cartItem: cartItem
             }
-        )
-        return item;
-    }catch(e){
-        return e;
-    }
+        ).then((res) => {
+            resolve(res)
+        }).catch((e) => {
+            this.logger.error(e);
+            reject(e)
+        });
+    });
 }
 /**
  * @description
@@ -219,6 +235,7 @@ async updateGuestCartItem(cartItem, cartId, itemId){
         return e;
     }
 }
+
 /**
  * @description delete specified item from customer cart
  * @author Itachi
@@ -229,14 +246,17 @@ async updateGuestCartItem(cartItem, cartId, itemId){
  * @memberof CartService
  */
 async removeItemFromCart(cartId, itemId){
-    try
-    {
-        const res = await this.MagentoClient.delete(`carts/${cartId}/items/${itemId}`)
-        return res;
-    }catch(e){
-        return e;
-    }
+    return new Promise((resolve, reject) => { 
+        this.MagentoClient.delete(`carts/${cartId}/items/${itemId}`).then((result) => {
+            resolve(result)
+        }).catch((e) => {
+            this.logger.error(e);
+            reject(e)
+        });
+    });
+    
 }
+
 /**
  * @description delete specified item from guest cart 
  * @author Itachi
@@ -255,6 +275,7 @@ async removeItemFromGuestCart(cartId, itemId){
         return e;
     }
 }
+
 /**
  * @description
  * @author Itachi
@@ -264,12 +285,14 @@ async removeItemFromGuestCart(cartId, itemId){
  * @memberof CartService
  */
 async getCart(cartId){
-    try{
-        const cart = await this.MagentoClient.get(`carts/${cartId}`);
-        return cart;
-    }catch(e){
-        return e;
-    }
+    return new Promise((resolve, reject) => {
+        this.MagentoClient.get(`carts/${cartId}`).then((cart) => {
+            resolve(cart)
+        }).catch((e) => {
+            this.logger.error(e);
+           reject(e); 
+        });
+    });
 }
 
 /**
@@ -292,25 +315,25 @@ async getGuestCart(cartId){
  * @description
  * @author Itachi
  * @date 23/10/2020
- * @param {number} cartId
+ * @param {number} userPhone
  * @param {number} addressId
  * @return {Promise<shippingMethod>} shippingMethods  
  * @memberof CartService
  */
-async getShippingMethods(cartId, addressId){
-    try{
-        /**
-         * @type {shippingMethod}
-         */
-        const shippingMethods = await this.MagentoClient.post(`carts/${cartId}/estimate-shipping-methods-by-address-id`, 
+async getShippingMethods(userPhone, addressId){
+    return new Promise((resolve, reject) => {
+        this.userService.findOne(userPhone).then((user) => {
+            const cartId = user.cart_id;
+            this.MagentoClient.post(`carts/${cartId}/estimate-shipping-methods-by-address-id`, 
             {
                 addressId: addressId
             }
-        )
-        return shippingMethods;
-    }catch(e){
-        return e;
-    }
+            ) 
+        }).catch((e) => {
+            this.logger.error(e);
+            reject(e)
+        });
+    })
 }
 
 /**

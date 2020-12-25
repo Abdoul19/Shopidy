@@ -15,7 +15,7 @@ export class UserService {
         this.elasticsearchService = ElasticsearchService;
         this.saltOrRounds = 10;
         this.smsService = SmsService;
-        this.logger = new LoggerService('UserService');
+        this.logger = new LoggerService('UserService', true);
     }
 
     async findOne(number) {
@@ -298,10 +298,10 @@ export class UserService {
 
                 reject();
             }).catch(e => {
-                // const {meta: { body: { error: { type } } } } = e;
-                // if(type == 'index_not_found_exception'){
-                //     resolve(false);
-                // }
+                const {meta: { body: { error: { type } } } } = e;
+                if(type == 'index_not_found_exception'){
+                    resolve(false);
+                }
                 reject(e)
             });
         });

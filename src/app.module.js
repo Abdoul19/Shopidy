@@ -11,7 +11,7 @@ import smsApi from './config/smsApi';
 import databaseConfig from './config/databaseConfig';
 // import { DatastoreModule } from './datastore/datastore.module';
  import { StoreModule } from './store/store.module';
-// import { CartModule } from './cart/cart.module';
+import { CartModule } from './cart/cart.module';
 import { LoggerModule } from './logger/logger.module';
 
 @Module({
@@ -25,6 +25,7 @@ import { LoggerModule } from './logger/logger.module';
     MagentoWrapperModule,
     AuthModule,
     LoggerModule,
+    CartModule
   ],
   controllers: [AppController],
   providers: [AppService, SmsService],

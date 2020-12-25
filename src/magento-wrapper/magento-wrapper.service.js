@@ -13,7 +13,7 @@ export class MagentoWrapperService {
         this.configService = ConfigService;
         this.MagentoClient = axios.create({
             baseURL: `${this.configService.get('magento2').url}/rest/default/V1/`,
-            headers: {'Authorization': `Bearer ${this.configService.get('magento2').accessToken}`, 'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json'},
             paramsSerializer: function (params) {
                 return qs.stringify(params, {arrayFormat: 'brackets', encode: false})
             },
@@ -21,9 +21,9 @@ export class MagentoWrapperService {
             //     return data;
             // }],
             transformRequest: [(data, headers) => {
-                // if(headers.Authorization == undefined){
-                //     headers.Authorization = `Bearer ${this.configService.get('magento2').accessToken}`;
-                // }
+                if(headers.Authorization == undefined){
+                    headers.Authorization = `Bearer ${this.configService.get('magento2').accessToken}`;
+                }
                 //headers['content-type'] = 'application/json';
                 return JSON.stringify(data);
             }]
