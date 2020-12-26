@@ -84,7 +84,9 @@ export class UserController {
   async updateUser(data){
     const { user } = data;
     try{
-      return await this.userService.updateUser(user);
+      const USER = await this.userService.findOne(user.phone);
+      const updatedUser = Object.assign({}, USER, user);
+      return await this.userService.updateUser(updatedUser);
     }catch(e){ 
       throw new HttpException(
         { 

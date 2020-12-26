@@ -416,21 +416,34 @@ export class UserService {
                 if(user.activation_code == 0){
                     reject('No activation code requested by this user');
                 }else if(isValid){
-                    this.smsService.sendSms(`Your Activation code is ${user.activation_code}`, phone);
+                    try {
+                        this.smsService.sendSms(`Your Activation code is ${user.activation_code}`, phone);
+                    } catch (e) {
+                        this.logger.error(e);
+                        //reject(e)
+                    }
+                    
                     resolve('Code sended');
                 }else{
                     const new_activation_code = this.generateActivationCode();
                     user.activation_code = new_activation_code;
                     user.activation_code_created_at = new Date().getTime();
-                    this.smsService.sendSms(`Your Activation code is ${new_activation_code}`, phone);
+
+                    try {
+                        this.smsService.sendSms(`Your Activation code is ${new_activation_code}`, phone);
+                    } catch (e) {
+                        this.logger.error(e);
+                        //reject(e)
+                    }
+
+                    
                     this.updateUser(user).then(() => { resolve('New Code sended') }).catch(e => {
                         this.logger.error(e);
                         reject(e)
                     });
                 }
             }).catch(e => {
-                this.logger.error(e);
-                reject(e)
+                
             });
         });
     }

@@ -11,6 +11,7 @@ export class SmsService {
     this.logger = new LoggerService('SmsService', true);
     this.smsClient = axios.create({
       baseURL: `${this.configService.get('smsApi').baseUrl}`,
+      //timeout: 60000,
       headers: {'Authorization': `Bearer ${this.configService.get('smsApi').accessToken}`, 'Content-Type': 'application/json'}
     });
   }
