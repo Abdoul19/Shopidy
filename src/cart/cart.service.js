@@ -2,6 +2,7 @@ import { Injectable, Dependencies } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MagentoWrapperService } from '../magento-wrapper/magento-wrapper.service'
 import { UserService } from '../user/user.service';
+import { SmsService } from '../sms/sms.service'
 import { LoggerService } from '../logger/logger.service'
 
 /**
@@ -12,7 +13,7 @@ import { LoggerService } from '../logger/logger.service'
  * @export
  * @class CartService
  */
-@Dependencies(MagentoWrapperService, ConfigService, UserService)
+@Dependencies(MagentoWrapperService, ConfigService, UserService, SmsService)
 @Injectable()
 export class CartService {
     /**
@@ -20,10 +21,11 @@ export class CartService {
      * @param {Object} MagentoWrapperService 
      * @param {Object} ConfigService 
      */
-    constructor(MagentoWrapperService, ConfigService, UserService){
+    constructor(MagentoWrapperService, ConfigService, UserService, SmsService){
         this.MagentoClient = MagentoWrapperService;
         this.configService = ConfigService;
         this.userService = UserService;
+        this.smsService = SmsService;
         this.logger = new LoggerService('CartService', true);
     }
 
@@ -108,9 +110,9 @@ async createCustomerCart(userPhone){
         this.userService.findOne(userPhone).then((user) => {
             const customerToken = user.customer_token;
 
-            if(user.cart_id){
-                resolve(user.cart_id);
-            }
+            // if(user.cart_id){
+            //     resolve(user.cart_id);
+            // }
 
             this.MagentoClient.post('carts/mine', {}, { headers: {Authorization: `Bearer ${customerToken}`}}).then((cartId) => {
                 user.cart_id = cartId;
@@ -164,32 +166,7 @@ async addItemToCart(cartItem, userPhone){
         });
     });
 }
-/**
- * @description
- * @author Itachi
- * @date 23/10/2020
- * @param {cartItem} cartItem
- * @param {string} cartId
- * @return {Promise<cartItem | error>} cartItem | error
- * @memberof CartService
- */
-async addItemToGuestCart(cartItem, cartId){       
-    try{
-        /**
-         * @type cartItem
-         */
-        const item = this.MagentoClient.post(`guest-carts/${cartId}/items`, 
-            {
-                cartItem: cartItem
-            },
 
-            { headers: { Authorization: ''} }
-        )
-        return item;
-    }catch(e){
-        return e;
-    }
-}
 /**
  * @description
  * @author Itachi
@@ -212,29 +189,6 @@ async updateCartItem(cartItem){
         });
     });
 }
-/**
- * @description
- * @author Itachi
- * @date 23/10/2020
- * @param {cartItem} cartItem
- * @param {string} cartId
- * @param {number} itemId
- * @return {Promise<cartItem | error>}  cartItem | error
- * @memberof CartService
- */
-async updateGuestCartItem(cartItem, cartId, itemId){
-    try
-    {
-        const item = await this.MagentoClient.put(`guest-carts/${cartId}/items/${itemId}`, 
-            {
-                cartItem: cartItem
-            }
-        )
-        return item;
-    }catch(e){
-        return e;
-    }
-}
 
 /**
  * @description delete specified item from customer cart
@@ -255,25 +209,6 @@ async removeItemFromCart(cartId, itemId){
         });
     });
     
-}
-
-/**
- * @description delete specified item from guest cart 
- * @author Itachi
- * @date 23/10/2020
- * @param {string} cartId
- * @param {number} itemId
- * @return {Promise<Boolean>} res
- * @memberof CartService
- */
-async removeItemFromGuestCart(cartId, itemId){
-    try
-    {
-        const res = await this.MagentoClient.delete(`guest-carts/${cartId}/items/${itemId}`)
-        return res;
-    }catch(e){
-        return e;
-    }
 }
 
 /**
@@ -299,36 +234,28 @@ async getCart(cartId){
  * @description
  * @author Itachi
  * @date 23/10/2020
- * @param {string} cartId
- * @return {Promise<cart>} cart  
- * @memberof CartService
- */
-async getGuestCart(cartId){
-    try{
-        const cart = await this.MagentoClient.get(`guest-carts/${cartId}`);
-        return cart;
-    }catch(e){
-        return e;
-    }
-}
-/**
- * @description
- * @author Itachi
- * @date 23/10/2020
  * @param {number} userPhone
- * @param {number} addressId
+ * @param {number} address
  * @return {Promise<shippingMethod>} shippingMethods  
  * @memberof CartService
  */
-async getShippingMethods(userPhone, addressId){
+async getShippingMethods(userPhone, address){
     return new Promise((resolve, reject) => {
         this.userService.findOne(userPhone).then((user) => {
             const cartId = user.cart_id;
-            this.MagentoClient.post(`carts/${cartId}/estimate-shipping-methods-by-address-id`, 
+            this.MagentoClient.post(`carts/mine/estimate-shipping-methods`, 
             {
-                addressId: addressId
+                address: address
+            },
+            {
+                headers: {Authorization: `Bearer ${user.customer_token}`}
             }
-            ) 
+            ).then((result) => {
+                resolve(result);
+            }).catch((e) => {
+                this.logger.error(e);
+                reject(e)
+            });
         }).catch((e) => {
             this.logger.error(e);
             reject(e)
@@ -337,121 +264,104 @@ async getShippingMethods(userPhone, addressId){
 }
 
 /**
- * @description Retrive shipping methods disponible for a specified guest cart
- * @author Itachi
- * @date 23/10/2020
- * @param {string} cartId
- * @param {address} address
- * @return {Promise<shippingMethod>} shippingMethods  
- * @memberof CartService
- */
-async getGuestShippingMethods(cartId, address){
-    try{
-        /**
-         * @type {shippingMethod}
-         */
-        const shippingMethods = await this.MagentoClient.post(`guest-carts/${cartId}/estimate-shipping-methods`, 
-            {
-                address: address
-            }
-        )
-        return shippingMethods;
-    }catch(e){
-        return e;
-    }
-}
-/**
  * @description
  * @author Itachi
  * @date 24/10/2020
- * @param {number} cartId
- * @param {addressInformation} addressInformation
+ * @param {number} userPhone
+ * @param {addressInformation} address
  * @return {Promise<paymentMethods>} paymentMethods 
  * @memberof CartService
  */
-async setShippingInformations(cartId, addressInformation){
-        try{
-            /**
-             * @type {Promise<paymentMethods>}
-             */
-            const paymentMethods = await this.MagentoClient.post(`carts/${cartId}/shipping-information`, 
+async setShippingInformations(userPhone, address){
+    
+    return new Promise((resolve, reject) => {
+        this.userService.findOne(userPhone).then((user) => {
+            const cartId = user.cart_id;
+            this.MagentoClient.post(`carts/mine/shipping-information`, 
             {
-                addressInformation: addressInformation
-            })
-            return paymentMethods;
-        }catch(e){
-            return e;
-        }
-    }
-/**
- * @description
- * @author Itachi
- * @date 25/10/2020
- * @param {string} cartId
- * @param {addressInformation} addressInformation
- * @return {Promise<paymentMethods>} paymentMethods 
- * @memberof CartService
- */
-async setGuestShipingInformations(cartId, addressInformation){
-    try{
-        /**
-         * @type Promise<paymentMethods>
-         */
-        const paymentMethods = await this.MagentoClient.post(`guest-carts/${cartId}/shipping-information`, 
-        {
-            addressInformation: addressInformation
-        })
-        return paymentMethods;
-    }catch(e){
-        return e;
-    }
+                addressInformation: address
+            },
+            {
+                headers: {Authorization: `Bearer ${user.customer_token}`}
+            }
+            ).then((paymentsInformation) => {
+                resolve(paymentsInformation)
+            }).catch((e) => {
+                this.logger.error(e);
+                reject(e);
+            });
+        }).catch((e) => {
+            this.logger.error(e);
+            reject(e);
+        });
+    });
+        
 }
+
 /**
  * @description
  * @author Itachi
  * @date 25/10/2020
- * @param {number} cartId
- * @param {paymentMethod} paymentMethod
+ * @param {number} userPhone
+ * @param {Object} data
  * @return {Promise<number>} orderId  
  * @memberof CartService
  */
-async putOrder(cartId, paymentMethod){
-    try{
-        /**
-         * @type Promise<number>
-         */
-        const orderId = await this.MagentoClient.put(`carts/${cartId}/selected-payment-method`, 
-        {
-            method: paymentMethod
-        })
-        return orderId;
-    }catch(e){
-        return e;
-    }
+async putOrder(userPhone, data){
+    
+    return new Promise((resolve, reject) => {
+        this.userService.findOne(userPhone).then((user) => {
+            const cartId = user.cart_id;
+            this.MagentoClient.post(`carts/mine/payment-information`, 
+            {
+                paymentMethod: data.paymentMethod,
+                billingAddress: data.billingAddress
+            }, 
+            {
+                headers: {Authorization: `Bearer ${user.customer_token}`}
+            }).then((orderId) => {
+                // console.log(orderId)
+                // resolve(orderId);
+                this.MagentoClient.get(`orders/${orderId}`).then((order) => {
+                    if(!user.orders){
+                        user.orders = [];
+                        user.orders.push(order);
+                        this.userService.updateUser(user).then((result) => {
+                            const orderCost = `${order.base_total_due} + ${order.base_currency_code}`
+                            this.smsService.sendSms(`Order Placed with succes, Total cost: ${orderCost}.\n Please make the payment`, user.phone);
+                            resolve(orderId);        
+                        }).catch((e) => {
+                            this.logger.error(e);
+                            reject(e);
+                        });
+                    }
+
+                    user.orders.push(order);
+                    this.userService.updateUser(user).then((result) => {
+                        const orderCost = `${order.base_total_due} + ${order.base_currency_code}`
+                        this.smsService.sendSms(`Order Placed with succes, Total cost: ${orderCost}.\n Please make the payment`, user.phone);
+                        resolve(orderId);        
+                    }).catch((e) => {
+                        this.logger.error(e);
+                        reject(e);
+                    });
+                     
+                }).catch((e) => {
+                    this.logger.error(e);
+                    reject(e);
+                });
+            }).catch((e) => {
+                this.logger.error(e);
+                reject(e);
+            });     
+        }).catch((e) => {
+            this.logger.error(e);
+            reject(e);
+        });
+    });
+
 }
-/**
- * @description
- * @author Itachi
- * @date 25/10/2020
- * @param {string} cartId
- * @param { paymentMethods} paymentMethod
- * @return {Promise<number>} orderId  
- * @memberof CartService
- */
-async putGuestOrder(cartId, paymentMethod){
-    try{
-        /**
-         * @type Promise<number> 
-         */
-        const orderId = await this.MagentoClient.put(`guest-carts/${cartId}/selected-payment-method`, 
-        {
-            method: paymentMethod
-        })
-        return orderId;
-    }catch(e){
-        return e;
-    }
-}
+
 /**
  * @description
  * @author Itachi
@@ -461,20 +371,20 @@ async putGuestOrder(cartId, paymentMethod){
  * @memberof CartService
  */
 async createInvoice(orderId){
-    try{
-        /**
-         * @type Promise<number>
-         */
-        const invoiceId = await this.MagentoClient.post(`order/${orderId}/invoice`, 
+    return new Promise((resolve, reject) => {
+        this.MagentoClient.post(`order/${orderId}/invoice`, 
             {
                 capture: true,
                 notify: true
             }
-        )
-        return invoiceId;
-    }catch(e){
-        return e;
-    }
+        ).then((invoiceId) => {
+            resolve(invoiceId)
+        }).catch((e) => {
+            this.logger.error(e);
+            reject(e);
+        });
+    });
+    
 }
 /**
  * @description
@@ -494,6 +404,52 @@ async getInvoice(invoiceId){
     }catch(e){
         return e;
     }
+}
+
+async getOrder(orderId){
+    return new Promise((resolve, reject) => {
+        this.userService.findOne(63696033).then((user) => {
+            const cartId = user.cart_id;
+            // this.MagentoClient.put(`carts/${cartId}/selected-payment-method`, 
+            // {
+            //     method: paymentMethod
+            // }).then((orderId) => {
+                this.MagentoClient.get(`orders/${orderId}`).then((order) => {
+                    if(!user.orders){
+                        user.orders = [];
+                        user.orders.push(order);
+                        this.userService.updateUser(user).then((result) => {
+                            console.log(order);
+                            this.smsService.sendSms(`Order Placed with Id ${orderId}, please make the payment`, user.phone);
+                            resolve(order);        
+                        }).catch((e) => {
+                            this.logger.error(e);
+                            reject(e);
+                        });
+                    }
+                    user.orders.push(order);
+                    this.userService.updateUser(user).then((result) => {
+                        console.log(order);
+                        this.smsService.sendSms(`Order Placed with Id ${orderId}, please make the payment`, user.phone);
+                        resolve(order);        
+                    }).catch((e) => {
+                        this.logger.error(e);
+                        reject(e);
+                    });
+                     
+                }).catch((e) => {
+                    this.logger.error(e);
+                    reject(e);
+                });
+            // }).catch((e) => {
+                // this.logger.error(e);
+                // reject(e);
+            // });     
+        }).catch((e) => {
+            this.logger.error(e);
+            reject(e);
+        });
+    });
 }
 
 /**

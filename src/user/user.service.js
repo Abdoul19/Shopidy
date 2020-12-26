@@ -68,7 +68,10 @@ export class UserService {
                                     id: _id
                                 }
                             );
-                        }).catch(e => reject("Error on database " + e));
+                        }).catch(e => {
+                            this.logger.error(e);
+                            reject("Error on database " + e)
+                        });
 
                     }).catch(e => {
                         this.logger.error(e);

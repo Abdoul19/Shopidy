@@ -6,9 +6,10 @@ import {ElasticsearchModule} from '@nestjs/elasticsearch';
 import { ConfigModule } from '@nestjs/config';
 import { ConfigService } from '@nestjs/config';
 import { UserModule } from '../user/user.module';
+import { SmsService } from '../sms/sms.service'
 
 @Module({
-    providers: [CartService],
+    providers: [CartService, SmsService],
     controllers: [CartController],
     exports: [CartService],
     imports: [

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Controller, Dependencies, Get, Post, Bind, Body, HttpStatus, Param, Request, UseGuards, HttpException } from '@nestjs/common';
 import { UserService } from './user.service';
 import { LocalAuthGuard } from '../auth/local-auth.guard';
@@ -7,39 +8,32 @@ import { AuthService } from '../auth/auth.service';
 @Dependencies(UserService, AuthService)
 @Controller('user')
 export class UserController {
-    constructor(UserService, AuthService){
-        this.userService = UserService;
-        this.authService = AuthService;
-    }
+  constructor(UserService, AuthService){
+      this.userService = UserService;
+      this.authService = AuthService;
+  }
 
-    @UseGuards(LocalAuthGuard)
-    @Post('login')
-    @Bind(Request())
-    async login(req){
-      if(!req.user.active){
-        throw new HttpException(
-          { 
-            status: HttpStatus.NOT_FOUND,
-            error: 'User not active'
-          }, 
-          HttpStatus.NOT_FOUND
-        ) 
-      }
-      return this.authService.login(req.user);
+@UseGuards(LocalAuthGuard)
+  @Post('login')
+  @Bind(Request())
+  async login(req){
+    if(!req.user.active){
+      throw new HttpException(
+        { 
+          status: HttpStatus.NOT_FOUND,
+          error: 'User not active'
+        }, 
+        HttpStatus.NOT_FOUND
+      ) 
     }
+    return this.authService.login(req.user);
+  }
 
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   @Bind(Request())
   getProfile(req) {
     return req.user;
-  }
-
-  @Post('register')
-  @Bind(Body())
-  async createUser(data){
-    const { user } = data;
-    return this.userService.createUser(user);
   }
 
   @Post('addUser')
@@ -88,6 +82,7 @@ export class UserController {
       const updatedUser = Object.assign({}, USER, user);
       return await this.userService.updateUser(updatedUser);
     }catch(e){ 
+      console.error(e)
       throw new HttpException(
         { 
           status: HttpStatus.NOT_FOUND,

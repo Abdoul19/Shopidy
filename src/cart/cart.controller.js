@@ -38,17 +38,6 @@ export class CartController {
         }
     }
 
-    @Get('createGuestCart')
-    async createGuestCart(){
-        try{
-            const cartId = await this.cartService.createGuestCart();
-            return cartId;
-        }catch(e){
-            return e;
-        }
-        
-    }
-
     @UseGuards(JwtAuthGuard)
     @Get('getCart/:cardId')
     @Bind(Param('cardId'))
@@ -127,9 +116,9 @@ export class CartController {
     @Post('getShippingMethods')
     @Bind(Request())
     async getShippingMethods(req){
-        const {Body: {addressId}, user: {userPhone}} = req;
+        const {body: {address}, user: {userPhone}} = req;
         try{
-            const res = await this.cartService.getShippingMethods(userPhone, addressId);
+            const res = await this.cartService.getShippingMethods(userPhone, address);
             return res;
         }catch(e){
             throw new HttpException(
@@ -141,30 +130,46 @@ export class CartController {
         }
     }
 
+    @UseGuards(JwtAuthGuard)
     @Post('setShippingInformations')
-    @Bind(Body())
-    async setShippingInformations(data){
-        const { cartId, addressInformation } = data;
+    @Bind(Request())
+    async setShippingInformations(req){
+        const { body: { address }, user: {userPhone} } = req;
         try{
-            const res = await this.cartService.setShippingInformations(cartId, addressInformation);
+            const res = await this.cartService.setShippingInformations(userPhone, address);
             return res;
         }catch(e){
-            return e;
+            throw new HttpException(
+                { 
+                  status: HttpStatus.BAD_REQUEST
+                }, 
+                HttpStatus.BAD_REQUEST
+            )
         }
     }
 
+    @UseGuards(JwtAuthGuard)
     @Post('putOrder')
-    @Bind(Body())
-    async putOrder(data){
-        const { cartId, method } = data;
+    @Bind(Request())
+    async putOrder(req){
+        const { body, user: {userPhone} } = req;
         try{
-            const res = await this.cartService.putOrder(cartId, method);
+            const res = await this.cartService.putOrder(userPhone, body);
             return res;
         }catch(e){
-            return e;
+            throw new HttpException(
+                { 
+                  status: HttpStatus.BAD_REQUEST
+                }, 
+                HttpStatus.BAD_REQUEST
+            )
         }
     }
 
+    /* To do
+     - Restrict access to admin
+     - Add link for user to consult invoice or generate pdf version of it
+    */
     @Get('createInvoice/:orderId')
     @Bind(Param('orderId'))
     async createInvoice(orderId){
@@ -172,10 +177,18 @@ export class CartController {
             const res = await this.cartService.createInvoice(orderId);
             return res
         }catch(e){
-            return e;
+            throw new HttpException(
+                { 
+                  status: HttpStatus.BAD_REQUEST
+                }, 
+                HttpStatus.BAD_REQUEST
+            )
         }
     }
 
+     /* To do
+     - Restrict access to admin
+     */
     @Get('getInvoice/:invoiceId')
     @Bind(Param('invoiceId'))
     async getInvoice(invoiceId){
@@ -187,6 +200,9 @@ export class CartController {
         }
     }
 
+    /* To do
+     - Restrict access to admin
+     */
     @Post('createShipement')
     @Bind(Body())
     async createShipement(data){
@@ -197,5 +213,14 @@ export class CartController {
         }catch(e){
             return e;
         }
+    }
+
+    /* To do
+     - Restrict access to admin
+     */
+    @Get('order/:orderId')
+    @Bind(Param('orderId'))
+    async getOrder(orderId){
+        return await this.cartService.getOrder(orderId)
     }
 }
