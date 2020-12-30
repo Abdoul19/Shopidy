@@ -34,6 +34,7 @@ export class StoreController {
     {
         const { categorieId, request } = data;
         try{
+            
             return await this.storeService.getCategoriesProducts(categorieId, request);
         }catch(e){
             throw new HttpException(

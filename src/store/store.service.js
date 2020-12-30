@@ -15,7 +15,7 @@ export class StoreService {
   async getCategories(){
     return new Promise((resolve, reject) => {
       this.magentoClient.get('categories?fields=children_data').then((data) => {
-        resolve(data);
+        resolve(data.children_data);
       }).catch((e) => reject(e));
     });
   }
@@ -26,7 +26,7 @@ export class StoreService {
         reject('Categorie id must be number')
       }
       const filter = this.parser.parse(request)
-      this.magentoClient.get(`categories/${categorieId}/products?${filter}`).then((data) => {
+      this.magentoClient.get(`categories/${categorieId}/products`).then((data) => {
         resolve(data);
       }).catch((e) => reject(e));
     });
