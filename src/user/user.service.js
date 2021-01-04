@@ -256,7 +256,7 @@ export class UserService {
                             if(activation_code == user.activation_code){
                                 user.active = true;
                                 
-                                this.updateUser(user).then(() => { resolve('User Activated')}).catch(e => reject(e))
+                                this.updateUser(user).then(() => { resolve(user)}).catch(e => reject(e))
                             }else{
                                 reject('Wrong activation code given');
                             }

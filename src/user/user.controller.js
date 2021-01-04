@@ -43,6 +43,7 @@ export class UserController {
     try{
       return await this.userService.addUser(user);
     }catch(e){
+      
       throw new HttpException(
         { 
           status: HttpStatus.BAD_REQUEST,
@@ -116,7 +117,8 @@ export class UserController {
   async activateUser(data){
     const { activation_code, phone, password } = data;
     try{
-      return await this.userService.activateUser(activation_code, phone, password);
+      const user = await this.userService.activateUser(activation_code, phone, password);
+      return await this.authService.login(user);
     }catch(e){
       
       throw new HttpException(
