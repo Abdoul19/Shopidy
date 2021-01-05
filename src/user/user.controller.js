@@ -20,10 +20,10 @@ export class UserController {
     if(!req.user.active){
       throw new HttpException(
         { 
-          status: HttpStatus.NOT_FOUND,
+          status: HttpStatus.FORBIDDEN,
           error: 'User not active'
         }, 
-        HttpStatus.NOT_FOUND
+        HttpStatus.FORBIDDEN
       ) 
     }
     return this.authService.login(req.user);
@@ -183,5 +183,10 @@ export class UserController {
         HttpStatus.NOT_FOUND
       )
     }
+  }
+
+  @Get('deactive')
+  async deactive(){
+    return await this.userService.deactive();
   }
 }

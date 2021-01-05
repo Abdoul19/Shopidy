@@ -12,36 +12,57 @@ export class AuthService {
   }
 
   async validateUser(phone, pass) {
-    const user = await this.userService.findOne(phone);
-    const passwordCheck = await bcrypt.compare(pass, user.password);
-
-    if (user && passwordCheck) {
-      const timeInterval = this.userService.timeInterval(user.customer_token_created_at, new Date().getTime() )
-      // if user is authenticated, we generate magento token for request
-      // And then atach this token to user object
-      if(!user.customer_token){
-        
-        const customer_token = await this.userService.getCustomerToken(user.customer.firstname, user.customer.lastname, user.customer.email, user.phone);
-        user.customer_token = customer_token;
-        user.customer_token_created_at = new Date().getTime();
-        await this.userService.updateUser(user);
-
-      }else if( timeInterval > 60 ){
-        
-        const customer_token = await this.userService.getCustomerToken(user.customer.firstname, user.customer.lastname, user.customer.email, user.phone);
-        user.customer_token = customer_token;
-        user.customer_token_created_at = new Date().getTime();
-        await this.userService.updateUser(user);
-      
-      }
-
-      
-
-      // Remove password from user object
-      const { password, ...result } = user;
-      return result;
-    }
-    return null;
+    return new Promise((resolve, reject) => {
+      this.userService.findOne(phone).then((user) => {
+        bcrypt.compare(pass, user.password).then((passwordCheck) => {
+          if (user && passwordCheck) {
+            const timeInterval = this.userService.timeInterval(user.customer_token_created_at, new Date().getTime() )
+            // if user is authenticated, we generate magento token for request
+            // And then atach this token to user object
+            if(!user.customer_token){
+              
+              this.userService.getCustomerToken(user.customer.firstname, user.customer.lastname, user.customer.email, user.phone).then((customer_token) => {
+                user.customer_token = customer_token;
+                user.customer_token_created_at = new Date().getTime();
+                this.userService.updateUser(user).then(() => {
+                  resolve(user)
+                }).catch((err) => {
+                  reject(err);
+                });
+              }).catch((err) => {
+                reject(err);
+              });
+              
+  
+            }else if( timeInterval > 60 ){
+              
+              this.userService.getCustomerToken(user.customer.firstname, user.customer.lastname, user.customer.email, user.phone).then((customer_token) => {
+                user.customer_token = customer_token;
+                user.customer_token_created_at = new Date().getTime();
+                this.userService.updateUser(user).then(() => {
+                  resolve(user)
+                }).catch((err) => {
+                  reject(err)
+                });
+              }).catch((err) => {
+                reject(err)
+              });            
+            }
+  
+            
+  
+            // Remove password from user object
+            const { password, ...result} = user;
+            resolve(result);
+          }
+          resolve(null);
+        }).catch((err) => {
+          reject(err)
+        });
+      }).catch((err) => {
+        reject(err)
+      });
+    });
   }
 
   async login(user) {

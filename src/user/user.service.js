@@ -1,4 +1,4 @@
-import { Injectable, Dependencies } from '@nestjs/common';
+import { Injectable, Dependencies, HttpStatus, HttpException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ElasticsearchService } from '@nestjs/elasticsearch'
 import * as bcrypt from 'bcrypt';
@@ -39,7 +39,10 @@ export class UserService {
                         resolve(user);
                     }).catch(e => { reject(e) });
                 }else{
-                    reject("Unrecognized Phone number")
+                    reject({ 
+                        status: HttpStatus.NOT_FOUND,
+                        error: "Unrecognized Phone number"
+                      })
                 }
             }).catch((e) => { 
                 this.logger.error(e);
@@ -291,15 +294,12 @@ export class UserService {
                     }
                 }
             }).then((result) => {
-                if(!result[0]){
-                    resolve(false);
-                }
-                const {phone} = result[0];
-                if(phone){
+                console.log(result.length)
+                if(result[0] && result[0].phone){
                     resolve(true);
                 }
+                resolve(false);
 
-                reject();
             }).catch(e => {
                 const {meta: { body: { error: { type } } } } = e;
                 if(type == 'index_not_found_exception'){
@@ -456,5 +456,16 @@ export class UserService {
             return false;
         }
         return true;
+    }
+
+    async deactive(){
+        return new Promise((resolve) => {
+            this.findOne('76288516').then((user) => {
+                user.active = false
+                this.updateUser(user).then(() => {
+                    resolve(true);
+                });
+            })
+        });
     }
 }
