@@ -45,7 +45,7 @@ export class StoreService {
     return new Promise((resolve, reject) => {
       const filters = this.parser.parse(request);
 
-      this.magentoClient.get(`products?${filters}`).then((data) => {
+      this.magentoClient.get(`products?${filters}&fields=items[sku,name]`).then((data) => {
         resolve(data);
       }).catch((e) => reject(e));
     });

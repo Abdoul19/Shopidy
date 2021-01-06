@@ -247,8 +247,8 @@ export class UserService {
             
             this.findOne(phone).then((user) => {
                 const activation_code_is_valid = this.checkActivationCode(activation_code, user.activation_code_created_at);
-                if(activation_code.toString().length < 4){
-                    reject('Activation code must be 4 digit')
+                if(activation_code.toString().length < 5){
+                    reject('Activation code must be at least 5 digit')
                 }else if(!activation_code_is_valid){
                     reject('Activation expired')
                 }else if(user.active == true){
@@ -446,7 +446,8 @@ export class UserService {
                     });
                 }
             }).catch(e => {
-                
+                this.logger.error(e)
+                reject(e)
             });
         });
     }

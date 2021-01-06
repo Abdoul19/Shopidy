@@ -170,7 +170,7 @@ export class UserController {
   
   @Post('resendActivationCode')
   @Bind(Body())
-  async resendPassword(data){
+  async resendActivationCode(data){
     const { phone} = data;
     try{
       return await this.userService.resendActivationCode(phone);
